@@ -37,6 +37,7 @@ the OS build at any time.
 | [06-android-upgrade.md](06-android-upgrade.md) | Upgrade paths: GammaOSNext (Android 14), GSI strategy, constraints |
 | [07-rebuild-firmware.md](07-rebuild-firmware.md) | Regenerating the OS: upstream sources, flash procedures, backup/restore |
 | [08-plan.md](08-plan.md) | Roadmap: study → optimize → upgrade → regenerate |
+| [09-kernel-dtb.md](09-kernel-dtb.md) | DTB decompiled: joystick/panel/charger/USB/GPU nodes vs the RGB10 Max 2 pain list |
 
 ## Status
 
