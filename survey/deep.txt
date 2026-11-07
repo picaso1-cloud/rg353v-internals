@@ -1,0 +1,66 @@
+=== PARTITIONS
+total 0
+drwxr-xr-x 2 root root  380 2026-11-08 01:16 .
+drwxr-xr-x 6 root root 1260 2026-11-08 01:16 ..
+lrwxrwxrwx 1 root root   20 2026-11-08 01:16 backup -> /dev/block/mmcblk0p9
+lrwxrwxrwx 1 root root   21 2026-11-08 01:16 baseparameter -> /dev/block/mmcblk0p12
+lrwxrwxrwx 1 root root   20 2026-11-08 01:16 boot -> /dev/block/mmcblk0p7
+lrwxrwxrwx 1 root root   21 2026-11-08 01:16 cache -> /dev/block/mmcblk0p10
+lrwxrwxrwx 1 root root   20 2026-11-08 01:16 dtbo -> /dev/block/mmcblk0p5
+lrwxrwxrwx 1 root root   21 2026-11-08 01:16 metadata -> /dev/block/mmcblk0p11
+lrwxrwxrwx 1 root root   20 2026-11-08 01:16 misc -> /dev/block/mmcblk0p4
+lrwxrwxrwx 1 root root   18 2026-11-08 01:16 mmcblk0 -> /dev/block/mmcblk0
+lrwxrwxrwx 1 root root   23 2026-11-08 01:16 mmcblk0boot0 -> /dev/block/mmcblk0boot0
+lrwxrwxrwx 1 root root   23 2026-11-08 01:16 mmcblk0boot1 -> /dev/block/mmcblk0boot1
+lrwxrwxrwx 1 root root   20 2026-11-08 01:16 recovery -> /dev/block/mmcblk0p8
+lrwxrwxrwx 1 root root   20 2026-11-08 01:16 security -> /dev/block/mmcblk0p1
+lrwxrwxrwx 1 root root   21 2026-11-08 01:16 super -> /dev/block/mmcblk0p13
+lrwxrwxrwx 1 root root   20 2026-11-08 01:16 trust -> /dev/block/mmcblk0p3
+lrwxrwxrwx 1 root root   20 2026-11-08 01:16 uboot -> /dev/block/mmcblk0p2
+lrwxrwxrwx 1 root root   21 2026-11-08 01:16 userdata -> /dev/block/mmcblk0p14
+lrwxrwxrwx 1 root root   20 2026-11-08 01:16 vbmeta -> /dev/block/mmcblk0p6
+=== MOUNTS (system structure)
+/dev/block/dm-2 on /vendor type ext4 (ro,seclabel,relatime)
+/dev/block/dm-4 on /odm type ext4 (ro,seclabel,relatime)
+/dev/block/dm-0 on /system/etc/permissions/android.hardware.fingerprint.xml type ext4 (ro,seclabel,nodev,relatime)
+/dev/block/dm-0 on /vendor/etc/usb_audio_policy_configuration.xml type ext4 (ro,seclabel,nodev,relatime)
+/dev/block/dm-2 on /sbin/.magisk/mirror/vendor type ext4 (ro,seclabel,relatime)
+/dev/block/dm-0 on /sbin/.magisk/mirror/vendor/etc/usb_audio_policy_configuration.xml type ext4 (ro,seclabel,nodev,relatime)
+/dev/block/dm-4 on /sbin/.magisk/mirror/odm type ext4 (ro,seclabel,relatime)
+/dev/block/dm-0 on /sbin/.magisk/mirror/system/etc/permissions/android.hardware.fingerprint.xml type ext4 (ro,seclabel,nodev,relatime)
+=== GSI/vendor split
+sargo
+sargo
+google/sargo/sargo:12/SP2A.220505.008/8782922:user/release-keys
+=== BOOT/Kernel chain
+storagemedia=emmc
+androidboot.storagemedia=emmc
+androidboot.mode=normal
+
+androidboot.dtb_idx=0
+androidboot.dtbo_idx=0
+
+androidboot.verifiedbootstate=orange
+androidboot.serialno=76d3d33d36bf336
+console=ttyFIQ0
+androidboot.baseband=N/A
+androidboot.wificountrycode=CN
+=== GammaOS overlay/system extras
+=== KERNEL modules
+7
+mali_kbase.ko
+=== THERMAL zones
+soc-thermal: 52500
+gpu-thermal: 47777
+battery: 18800
+=== GOVERNORS
+cpu0: schedutil | gpu: simple_ondemand | dmc: dmc_ondemand
+=== GPU freq now + max
+200000000
+800000000
+800000000 700000000 600000000 400000000 300000000 200000000
+=== ZRAM/SWAP
+/dev/block/zram0                        partition	1503056	111360	-2
+
+=== RK3566 checks
+2022-05-05

@@ -1,0 +1,63 @@
+=== CPU/MEM
+MemTotal:        2004080 kB
+408000 600000 816000 1104000 1416000 1608000 1800000 
+=== GPU
+dmc
+fde60000.gpu
+fdf80200.rkvdec
+[init.svc.gpu]: [running]
+[init.svc_debug_pid.gpu]: [668]
+[ro.boottime.gpu]: [38498744230]
+=== STORAGE
+/dev/block/mmcblk0p11  11M 120K   11M   2% /metadata
+/dev/block/mmcblk0p14  22G  18G  3.8G  83% /data
+tmpfs                 979M    0  979M   0% /data_mirror
+dm-0
+dm-1
+dm-2
+dm-3
+dm-4
+loop0
+loop1
+loop10
+=== WIFI/BT
+8: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    inet 192.168.1.148/24 brd 192.168.1.255 scope global wlan0
+[vendor.wlan.driver.version]: [v5.12.0-8-g39bbb8dd2.20201015_COEX20200730-5151]
+[vendor.wlan.firmware.version]: [v24.8]
+[wifi.active.interface]: [wlan0]
+  p2p0: 0000    0.  -256.  -256.       0      0      0      0      0        0
+=== DISPLAY
+  DisplayDeviceInfo{"Built-in Screen": uniqueId="local:0", 640 x 480, modeId 1, defaultModeId 1, supportedModes [{id=1, width=640, height=480, fps=60.000004, alternativeRefreshRates=[]}], colorMode 0, supportedColorModes [0], hdrCapabilities HdrCapabilities{mSupportedHdrTypes=[], mMaxLuminance=500.0, mMaxAverageLuminance=500.0, mMinLuminance=0.0}, allmSupported false, gameContentTypeSupported false, density 160, 213.0 x 213.0 dpi, appVsyncOff 1000000, presDeadline 16666666, touch INTERNAL, rotation 0, type INTERNAL, address {port=0}, deviceProductInfo null, state ON, frameRateOverride , brightnessMinimum 0.0, brightnessMaximum 1.0, brightnessDefault 0.39763778, FLAG_DEFAULT_DISPLAY, FLAG_ROTATES_WITH_CONTENT, FLAG_SECURE, FLAG_SUPPORTS_PROTECTED_BUFFERS}
+    mBaseDisplayInfo=DisplayInfo{"Built-in Screen", displayId 0", displayGroupId 0, FLAG_SECURE, FLAG_SUPPORTS_PROTECTED_BUFFERS, FLAG_TRUSTED, real 640 x 480, largest app 640 x 480, smallest app 640 x 480, appVsyncOff 1000000, presDeadline 16666666, mode 1, defaultMode 1, modes [{id=1, width=640, height=480, fps=60.000004, alternativeRefreshRates=[]}], hdrCapabilities HdrCapabilities{mSupportedHdrTypes=[], mMaxLuminance=500.0, mMaxAverageLuminance=500.0, mMinLuminance=0.0}, userDisabledHdrTypes [], minimalPostProcessingSupported false, rotation 0, state ON, type INTERNAL, uniqueId "local:0", app 640 x 480, density 160 (213.0 x 213.0) dpi, layerStack 0, colorMode 0, supportedColorModes [0], address {port=0}, deviceProductInfo null, removeMode 0, refreshRateOverride 0.0, brightnessMinimum 0.0, brightnessMaximum 1.0, brightnessDefault 0.39763778}
+Physical size: 640x480
+Physical density: 160
+=== INPUT devices
+N: Name="gpio-moount_adc"
+H: Handlers=event0 dmcfreq 
+N: Name="rk805 pwrkey"
+H: Handlers=event1 dmcfreq 
+N: Name="adc-keys"
+H: Handlers=event2 dmcfreq 
+N: Name="gpio-keys"
+H: Handlers=event3 dmcfreq 
+N: Name="retrogame_joypad"
+H: Handlers=event4 dmcfreq 
+N: Name="touch_joypad"
+H: Handlers=event5 dmcfreq 
+=== GAMMAOS bits
+adbd.rc
+android.hidl.allocator@1.0-service.rc
+android.system.suspend@1.0-service.rc
+apexd.rc
+atrace.rc
+atrace_userdebug.rc
+audioserver.rc
+blank_screen.rc
+[ro.lineage.display.version]: [GammaOS_Lite_v1.5]
+[ro.lineage.version]: [GammaOS_v1.5]
+=== TUN + root
+crw-rw---- 1 system vpn 10, 200 2026-11-08 01:16 /dev/tun
+uid=2000(shell) gid=2000(shell) groups=2000(shell),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:shell:s0
+/sbin/su
+0
