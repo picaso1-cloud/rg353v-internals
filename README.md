@@ -6,6 +6,10 @@ compiled from live hardware probing. Goal: understand how everything is wired,
 how to optimize it, how to upgrade its Android version, and how to regenerate
 the OS build at any time.
 
+> **Cross-device context:** see `MASTER-PLAN.md` (three-device strategy),
+> `SHARED-KNOWLEDGE.md` (reusable findings), `docs/DECISIONS.md`,
+> `docs/RE-METHOD.md`. This repo is the RG353V slice of the platform.
+
 ## Device identity (as probed)
 
 | Item | Value |
