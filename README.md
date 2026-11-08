@@ -38,6 +38,7 @@ the OS build at any time.
 | [07-rebuild-firmware.md](07-rebuild-firmware.md) | Regenerating the OS: upstream sources, flash procedures, backup/restore |
 | [08-plan.md](08-plan.md) | Roadmap: study → optimize → upgrade → regenerate |
 | [09-kernel-dtb.md](09-kernel-dtb.md) | DTB decompiled: joystick/panel/charger/USB/GPU nodes vs the RGB10 Max 2 pain list |
+| [10-emulation-and-webasm.md](10-emulation-and-webasm.md) | Emulation limits both devices + browser WASM gaming verdicts |
 
 ## Status
 
