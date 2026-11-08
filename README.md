@@ -48,3 +48,4 @@ the OS build at any time.
 - ⏳ Android upgrade test (GammaOSNext / Android 14)
 - ⏳ Regeneration procedure validation (build from upstream sources)
 | [11-arkos-side.md](11-arkos-side.md) | ArkOS dual-boot side: survey, PS2 verdict (not possible on Linux), optimization notes |
+| [12-ps2-linux-investigation.md](12-ps2-linux-investigation.md) | ARMSX2 on ArkOS: full investigation, why it cannot display, ROCKNIX path |
