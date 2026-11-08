@@ -96,6 +96,8 @@ Validate against Stage 0/2 results, then propose upstream to archr-linux.
 
 ## Next action
 
-Decide the boot path (A/B/C in `14-rocknix-image-analysis.md` §4). If A: boot
-ArkOS online and capture `/boot` + the eMMC bootloader read-only. Then flash the
-Generic image and run Stage-0 measurements.
+**None for now (decision 2026-11-08: documentation-only, nothing to flash).**
+When/if this is picked up again: decide the boot path (A/B/C in
+`14-rocknix-image-analysis.md` §4). If A: boot ArkOS online and capture `/boot`
++ the eMMC bootloader read-only. Then flash the Generic image and run Stage-0
+measurements.

@@ -53,4 +53,4 @@ the OS build at any time.
 - ⏳ Regeneration procedure validation (build from upstream sources)
 - ✅ ArkOS surveyed; PS2-on-Linux blocked by the display stack (documented)
 - ✅ ROCKNIX image analysed offline (correct Generic variant, verified)
-- ⏳ ROCKNIX on hardware: blocked on the Android/eMMC boot decision (see doc 14 §4)
+- 📚 ROCKNIX on hardware: deferred by decision (documentation-only); see doc 14 §4 for the Android/eMMC boot options

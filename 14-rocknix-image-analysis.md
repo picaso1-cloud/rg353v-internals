@@ -10,6 +10,10 @@ the right one, and corrects two claims in `13-archr-rk3566-plan.md`.
 
 ## TL;DR
 
+> **Decision (2026-11-08): documentation-only for now.** No card is being
+> flashed and no device will be modified. This document is the reference for a
+> future ROCKNIX experiment; the hardware steps remain valid but unexecuted.
+
 1. **Wrong image was downloaded first.** The RG353V is in the **Generic**
    RK3566 image; `Specific` is only for Powkiddy X55/X35S and Anbernic RG DS
    (plus RG DS Plus). Generic has been downloaded and checksum-verified.
