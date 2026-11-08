@@ -7,8 +7,8 @@ Question: build an **Arch-R style ROM** for the RG353V so the modern stack
 > **Generic** image already *is* the modern stack (glibc 2.44, Mesa 26.2.4,
 > panfrost/panvk, kernel 7.2.11, sway) and ships **ARMSX2 preinstalled**. A new
 > Arch-R port is therefore **not required** for the performance goal; it would
-> only buy `pacman`/rolling packaging. The real blocker is the Android/eMMC boot
-> conflict, not missing board support.
+> only buy `pacman`/rolling packaging. The boot model is the normal dual-mode
+> one: **TF1 OS card boots first**, eMMC Android is the fallback, TF2 is ROMs.
 
 ## Why not just flash Arch-R
 
@@ -39,14 +39,16 @@ optional**, not the recommended route to performance.
    — to a **spare SD** (TF1). RG353V is listed under *Generic*; the `Specific`
    image is only for Powkiddy X55/X35S and RG DS. **Do not** use `Specific`.
    Hashing and flashing recipe: `14-rocknix-image-analysis.md` §6.
-2. **Boot prerequisite:** with Android on the eMMC, ROCKNIX does **not** boot
-   from SD. Options: (A) try a legacy chainload (SD-only, keeps Android),
-   (B) wipe the eMMC (destructive, documented), or (C) stay on GammaOS/ArkOS.
-   Details: `14-rocknix-image-analysis.md` §4.
+2. **Boot model:** TF1 is the OS card and has boot priority; the eMMC
+   (GammaOS Android) boots only when TF1 has no bootable OS; TF2 is ROMs-only.
+   So flash ROCKNIX to a **TF1** card and boot it — Android stays untouched on
+   the eMMC and boots again when the TF1 card is removed. The ROCKNIX wiki's
+   "wipe Android" note is an unverified caveat for some units, not this
+   device's normal behavior. Details: `14-rocknix-image-analysis.md` §4.
 3. After boot, verify: panel + touch, audio, Wi-Fi, buttons/sticks, GL
    (`Mesa 26.2.4`, `wayland-info | grep xdg_wm_base`), glibc 2.44.
 4. Run **ARMSX2 from EmulationStation** against the PS2 ISOs already on the
-   ArkOS SD (`/roms2/ps2`, BIOS `SCPH30004R.bin`). No AppImage/libc hacks.
+   TF2 ROMs card (`/roms2/ps2`, BIOS `SCPH30004R.bin`). No AppImage/libc hacks.
 
 ### Stage 1 — capture the RK3566 boot chain  ✅ mostly done offline
 From the Generic image (verified):
@@ -55,8 +57,7 @@ From the Generic image (verified):
   SYSTEM squashfs, STORAGE ext4.
 - U-Boot Anbernic board code: SARADC model table (RG353V = 695), panel ID
   detection (0x3052 v1 / 0x3821 v2).
-Still to capture on hardware: ArkOS `/boot` legacy files + eMMC bootloader
-(read-only) to evaluate option A.
+Nothing else is required for the normal TF1 boot path.
 
 ### Stage 2 — Arch userland on the proven boot chain (optional)
 Only if pacman/Arch packaging is actually wanted. ROCKNIX's stack already
@@ -73,16 +74,18 @@ Validate against Stage 0/2 results, then propose upstream to archr-linux.
 
 ## Risks & mitigations
 
-- **Android/eMMC boot conflict**: ROCKNIX needs either the eMMC wiped or a
-  legacy chainload. Do not assume dual-boot parity with ArkOS.
+- **Boot model**: TF1 OS card boots first; eMMC Android is the fallback; TF2 is
+  ROMs-only. No eMMC change is needed for a TF1 ROCKNIX experiment. The wiki's
+  "wipe Android" caveat applies (if at all) only to units where TF1 boot fails;
+  verify on hardware before touching the eMMC.
 - **Panel/backlight quirks**: mainline DTS + u-boot panel detection + kernel
   support all present. This unit is **v2** (ID 0x3821). GammaOS DTB
   (`survey/boot.dts`) is the cross-reference (two panel nodes: 0x3052 and 0x3821).
 - **DDR/u-boot brick risk**: none for SD-only experiments; the eMMC is only at
-  risk if option B (wipe) is chosen.
+  risk if a wipe is ever attempted (not planned).
 - **Card quality**: same A2 advice as the RGB10 Max 2 guide.
-- **Time**: Stage 0 ~1 hour after the boot decision; Stage 1 done offline;
-  Stage 2 a day; Stage 3 multi-day and optional.
+- **Time**: Stage 0 ~1 hour; Stage 1 done offline; Stage 2 a day; Stage 3
+  multi-day and optional.
 
 ## Current assets
 
@@ -97,7 +100,6 @@ Validate against Stage 0/2 results, then propose upstream to archr-linux.
 ## Next action
 
 **None for now (decision 2026-11-08: documentation-only, nothing to flash).**
-When/if this is picked up again: decide the boot path (A/B/C in
-`14-rocknix-image-analysis.md` §4). If A: boot ArkOS online and capture `/boot`
-+ the eMMC bootloader read-only. Then flash the Generic image and run Stage-0
-measurements.
+When/if this is picked up: flash the Generic image to a **TF1** card, boot it
+(Android on the eMMC is untouched; remove the TF1 card to boot Android again),
+and run the Stage-0 checks. No eMMC wipe or chainload is needed for that.

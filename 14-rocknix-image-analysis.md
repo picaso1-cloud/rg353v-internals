@@ -24,11 +24,19 @@ the right one, and corrects two claims in `13-archr-rk3566-plan.md`.
 3. **ARMSX2 is preinstalled** (`/usr/share/armsx2-sa/armsx2-qt` +
    `/usr/bin/start_armsx2.sh`), with PS2 BIOS/savestate plumbing. The PS2 games
    already on the ArkOS SD (`/roms2/ps2`) can be used directly.
-4. **The real blocker is boot, not hardware:** with Android present on the
-   eMMC, ROCKNIX will not boot from SD (documented by ROCKNIX and confirmed by
-   the community). Wiping Android makes it boot; restoring Android breaks the
-   SD boot again. Three paths are listed at the end — one of them may keep
-   Android via a legacy chainload (R&D, not yet proven).
+4. **Boot model (verified device behavior, corrected 2026-11-08):** the RG353V
+   has **two OS modes and two SD slots**:
+   - **TF1** = OS card. A bootable card in TF1 has **boot priority**; the
+     console boots it directly (Linux *or* Android on TF1).
+   - **eMMC** = the built-in OS (currently GammaOS Android); it boots only when
+     there is no bootable OS card in TF1.
+   - **TF2** = ROMs/media card only (no OS boot).
+
+   So ROCKNIX on a TF1 card should boot directly, **with GammaOS Android left
+   untouched on the eMMC**. Removing the TF1 card boots Android again. The
+   ROCKNIX wiki note ("wipe Android on P/M/V") is a caveat for some
+   units/bootloader revisions — **not** the normal behavior of this unit, and
+   not verified here. It is a fallback only if the TF1 boot actually fails.
 5. **Panel variant is v2 on this unit** (ID `0x3821`), which ROCKNIX's u-boot
    auto-detects and the kernel supports. The vendor GammaOS DTB's active panel
    node is `elida,kd35t133` at 640×480 — not the earlier "elida = the only
@@ -81,8 +89,8 @@ chosen {
 ```
 
 `fe2b0000` = SDMMC0 (SD/TF slot), `fe310000` = SDHCI (eMMC) → **SPL order is
-SD first, eMMC second**. This is useful evidence for the Android boot conflict
-below (the SD SPL itself is not the problem).
+SD first, eMMC second**, which matches the verified TF1-priority boot model in
+§4.
 
 `extlinux/extlinux.conf` (Generic):
 
@@ -161,60 +169,45 @@ workaround chain is unnecessary on ROCKNIX.
 
 ---
 
-## 4. The Android/eMMC boot conflict (the real blocker)
+## 4. Boot model — two OS modes, two SD slots (verified behavior)
 
-ROCKNIX wiki (RG353 P/M/V/VS): *"You will need to wipe the Android partition to
-boot into ROCKNIX. WARNING — This will remove Android completely from your
-device."* Community reports agree: after zeroing Android, ROCKNIX boots; if
-Android is reflashed to the eMMC, **ROCKNIX stops booting**.
+The RG353V boots like this:
 
-**Why (inferred, to confirm on hardware):** the RG353V's eMMC carries the
-Android bootloader, which is what the BootROM ultimately executes when a valid
-eMMC image exists; that bootloader can chainload a *legacy* Linux install from
-SD (the mechanism ArkOS uses: `Image`/`uInitrd`/`rk3566-OC.dtb` + its own
-U-Boot at SD sector 16384). ROCKNIX ships **only** the mainline path — RKNS
-idbloader + U-Boot + `extlinux/` — and **no legacy boot files**, so the Android
-bootloader has nothing to chainload and boots Android instead. Wiping the eMMC
-lets the BootROM fall through to the SD's own U-Boot (whose SPL order is already
-SD-first, see §2).
-
-This must be confirmed on hardware; the alternative explanation (BootROM
-choosing eMMC first) leads to the same conclusion.
-
-### Implications
-
-- ROCKNIX is **not** a drop-in spare-SD dual boot on this unit. It is a
-  destructive switch unless the legacy chainload below is made to work.
-- The eMMC can be restored from a GammaOS image / SDDiskTool "Upgrade Firmware"
-  card, but restoring it breaks ROCKNIX SD boot again — it is one or the other,
-  not both, with the stock boot chain.
-
-### Three options
-
-| Option | What it means | Risk |
+| Slot / medium | Role | Boot priority |
 |---|---|---|
-| **A — legacy chainload R&D** (recommended first try) | Keep Android. Reproduce the ArkOS legacy boot files on the ROCKNIX SD so the eMMC bootloader chainloads ROCKNIX's `KERNEL` + DTB (kernel has an embedded initramfs, so no `uInitrd` strictly needed). Purely SD-side; remove the SD to boot Android. **Not yet proven.** | Low (no eMMC writes) |
-| **B — wipe eMMC, flash ROCKNIX** | Documented path. Back up the eMMC first; restore later only by giving up ROCKNIX SD boot (unless A is solved). | High (Android gone until reflashed; switching requires reflashing) |
-| **C — stay on GammaOS + ArkOS** | PS2 stays on Android (already works). ROCKNIX/PS2-on-Linux not used. | None |
+| **TF1** (microSD, first slot) | OS card: Linux **or** Android | **First** — if a bootable OS card is present, it boots from it |
+| **eMMC** (32 GB) | Built-in OS (currently GammaOS Android) | Fallback — boots only when TF1 has no bootable OS |
+| **TF2** (microSD, second slot) | ROMs/media only | Never boots |
 
-### Next diagnostic for option A (needs device online, ArkOS booted)
+So the safe experiment is exactly the simple one:
 
-Read-only capture from the working ArkOS SD:
+1. Flash ROCKNIX **Generic** to a TF1 card.
+2. Insert it in TF1 and power on → the console boots ROCKNIX.
+3. Remove the TF1 card and power on → the console boots **GammaOS Android on
+   the eMMC**, untouched.
+4. TF2 keeps the ROM/BIOS card (e.g. `/roms2/ps2`), available to whichever OS is
+   running — no need to reflash or wipe anything.
 
-```sh
-ls -la /boot                       # BOOT FAT: Image? uInitrd? rk3566-OC.dtb? boot.ini?
-cat /boot/boot.ini 2>/dev/null      # legacy boot script, if present
-cat /boot/extlinux/extlinux.conf 2>/dev/null
-mount | grep -E '/boot|BOOT'
-# eMMC bootloader (read-only; mmcblk0 = eMMC):
-sudo dd if=/dev/mmcblk0 bs=512 skip=16384 count=8192 of=/tmp/emmc-uboot.img
-strings /tmp/emmc-uboot.img | grep -iE 'boot.ini|Image|uInitrd|dtb|extlinux'
-```
+### Caveat (unverified on this unit)
 
-That tells us exactly what the Android bootloader expects. If it is a script
-driven by `boot.ini`/`extlinux`, option A becomes straightforward; if filenames
-and cmdline are hardcoded, we may still be able to satisfy them (same `Image`
-name, same DTB name, kernel cmdline `boot=LABEL=ROCKNIX disk=LABEL=STORAGE`).
+The ROCKNIX wiki says P/M/V users must wipe the Android partition, and some
+community reports match that on certain units/bootloader revisions. That does
+**not** describe this device's normal TF1-priority behavior and has **not** been
+observed here. Treat it as a fallback **only if** a TF1 ROCKNIX card actually
+fails to boot; the first thing to check then is whether the card is bootable and
+correctly flashed, not the eMMC.
+
+### If a TF1 boot ever fails
+
+| Fallback | What it means |
+|---|---|
+| Re-check the card | Correct Generic image, verified hash, proper `dd` + `sync`, good A2 card |
+| Verify the panel/DTB | U-Boot should pick `rk3566-anbernic-rg353v.dtb`; v2 panel = ID 0x3821 |
+| Last resort: eMMC wipe | Destructive, documented by ROCKNIX; requires a GammaOS/SDDiskTool restore card to get Android back. Not planned. |
+
+For the record, an optional R&D path (legacy chainload) was considered earlier;
+it is **not needed** under the verified TF1-priority model and is not part of the
+plan.
 
 ---
 
@@ -257,6 +250,6 @@ sync
 ```
 
 First boot expands `STORAGE` to fill the card. Keep the card A2/quality class
-(same advice as the RGB10 Max 2 guide). Remove the SD to boot Android — until
-option A is proven, do **not** expect Android and ROCKNIX to coexist from the
-stock eMMC bootloader.
+(same advice as the RGB10 Max 2 guide). Put the card in **TF1**; Android on the
+eMMC is untouched and boots again when the TF1 card is removed. Keep ROMs/BIOS
+on the **TF2** card.

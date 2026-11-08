@@ -53,4 +53,4 @@ the OS build at any time.
 - ⏳ Regeneration procedure validation (build from upstream sources)
 - ✅ ArkOS surveyed; PS2-on-Linux blocked by the display stack (documented)
 - ✅ ROCKNIX image analysed offline (correct Generic variant, verified)
-- 📚 ROCKNIX on hardware: deferred by decision (documentation-only); see doc 14 §4 for the Android/eMMC boot options
+- 📚 ROCKNIX on hardware: deferred by decision (documentation-only); when resumed, flash the Generic image to a **TF1** card (TF1 boots first, eMMC Android untouched, TF2 = ROMs)
