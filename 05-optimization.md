@@ -4,62 +4,57 @@ Baseline at survey: 2 GB RAM, soc 52.5 °C / gpu 47.8 °C (idle-charge),
 / 152 packages, `/data` 83% used, schedutil + simple_ondemand + dmc_ondemand,
 GPU max 800 MHz (top OPP reachable), zram 1.5 GB.
 
-## Levers, ordered by value
+## Levers, ordered by value (with measured results)
 
-### 1. RAM & background management (2 GB is tight)
-- zram already 1.5 GB ✓ (good default on this RAM).
-- Trim **GammaOS_Lite preinstalled fat** (frontend extras, duplicated
-  launchers): audit `pm list packages -3`, remove unused ones (`pm uninstall
-  --user 0 <pkg>` — reversible by factory reset; true uninstall needs /data
-  wipe or Magisk module).
-- Background janitor (same concept as RGB10 Max 2): a Magisk script that runs
-  `am kill-all` periodically and force-stops heavy unused apps — worth adding
-  once real usage patterns are known.
+### 1. GPU & DRAM latency — DEPLOYED
+- GPU: `simple_ondemand` + full 200–800 MHz OPP ✓ nothing to unlock.
+- **GPU `min_freq` writes are silently ignored while the GPU is
+  runtime-suspended** (verified: echo succeeds, value reverts) — no GPU floor
+  possible this way; `simple_ondemand` ramps 200→800 MHz on load anyway.
+- **DMC (DRAM) floor WORKS and is the real lever**: idle drops to 324 MHz;
+  `echo 780000000 > /sys/class/devfreq/dmc/min_freq` pins it — kills the
+  DRAM-latency spikes that cause frame pacing hitches.
 
-### 2. GPU & DRAM latency
-- GPU: `simple_ondemand` + full 800 MHz OPP available ✓ — nothing to unlock,
-  unlike RGB10 Max 2. Optional: `performance` governor during gaming
-  (thermals permitting), or `min_freq` floor (e.g. 400 MHz) to kill ramp lag.
-- **DMC (`dmc_ondemand`) is the interesting one**: DRAM frequency scaling adds
-  latency spikes. Pinning DMC at a higher floor (or `performance` during
-  gaming) can smooth frame pacing — measure before/after with a stream.
+### 2. Scripts deployed (Magisk-rooted, on-demand)
+- `/data/local/tmp/gamemode` — CPU floor 816 MHz + DMC floor 780 MHz
+- `/data/local/tmp/gamemode-off` — back to 408 MHz / 324 MHz
+- `/data/adb/service.d/janitor.sh` — boot script (root): background janitor
+  (`am kill-all` every 60 s) + keeps wireless adb (`:5555`) enabled.
+- Run via root adb: `su -c /data/local/tmp/gamemode`
 
 ### 3. CPU
-- `schedutil` is right for battery; a `min_freq` floor (816 MHz) during
-  gaming helps consistency; full `performance` only if thermals allow
-  (soc already 52 °C idle-charge).
+- GammaOS default governor is **`interactive`** (their performance choice).
+- `schedutil` was on the RGB10 Max 2; interactive already biases high — leave.
 
 ### 4. Storage
-- `/data` was 83% used → debloat frees space; eMMC is fast enough.
-- f2fs/ext4 choice is fixed by the vendor image (no action).
+- The 18 GB in /data is USER content (ADM downloads 7 GB incl. Valve/Steam
+  data 2.2 GB, GTA SA 2.6 GB, apps 4 GB) — not bloat. Clean ADM if stale.
+- GammaOS_Lite package count: 152 — already lean; no debloat pass needed.
 
-### 5. Input latency
-- GammaOS `retrogame_joypad` polling — check
-  `/sys/devices/platform/singleadc-joypad/` for a `poll_interval` style node;
-  reducing ADC poll interval improves stick response at slight CPU cost.
-- `touch_joypad` (pad→touch emulator) is heavy if unused — consider disabling
-  its service if you never need touch emulation.
-
-### 6. Debloat list (candidates to audit, not blind-remove)
-- Launcher3 overlays/duplicates, unused GammaOS extras, Chromecast-ish and
-  print services, any preinstalled store/updater.
-- `pm list packages -s | sort` diff against a minimal gaming set.
-
-### 7. Thermal
-- soc 52 °C at idle-charge is fine; real gaming loads need measurement
-  (`soc-thermal` trip points live in the DTBO). If it throttles, the first
-  lever is the GPU governor, not the CPU.
+### 5. Thermal
+- soc 35 °C / gpu 34 °C idle (not charging) — cool. Gaming loads TBD.
 
 ## Measurement harness (to be built)
 
 - Streaming latency: Moonlight session + network RTT logs.
 - Frame pacing: `dumpsys gfxinfo com.<game>` frame time histogram.
-- Thermals under load: thermal zones polled every 5 s during a fixed
-  benchmark scene.
-- RAM pressure: MemAvailable + psi (pressure stall info) during a heavy game.
+- Thermals under load: thermal zones polled every 5 s during a fixed benchmark.
+- RAM pressure: MemAvailable + psi during a heavy game.
 
 ## Non-goals
 
-- Kernel rebuild (4.19.232 prebuilt works; rebuild only if a driver fix
-  demands it — then use the GammaOS-RK3566 kernel source, not upstream).
+- Kernel rebuild (4.19.232 prebuilt + vendor mali_kbase module; rebuild only
+  if a driver fix demands it).
 - Verified boot re-lock (stays orange/unlocked).
+
+## Deployed (2026-11-08) — verified live
+
+- `/data/local/tmp/gamemode` / `gamemode-off`: CPU floor 816 MHz + DMC floor
+  780 MHz (GPU floor impossible — devfreq ignores min writes while the GPU is
+  runtime-suspended; simple_ondemand ramps 200→800 automatically).
+  Requires `su -c`. Both directions verified.
+- `/data/adb/service.d/janitor.sh`: `am kill-all` every 60 s + wireless adb
+  enabler (replaces the separate adb-wifi.sh).
+- Debloat: NOT needed — GammaOS_Lite is lean (152 packages); the 18 GB in
+  /data is user content (ADM downloads 7 GB, Valve 2.2 GB, GTA SA 2.6 GB).
+- Storage note: if the ADM downloads are stale, clearing them frees 7 GB.

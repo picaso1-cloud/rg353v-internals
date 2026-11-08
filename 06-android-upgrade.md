@@ -1,59 +1,62 @@
-# 06 — Android upgrade paths
+# 06 — Android upgrade paths (study result)
 
-Current: Android 12 (Pixel 3a sargo GSI) on RK3566 vendor BSP, kernel 4.19.
-The vendor BSP (HALs) decides which Android versions are possible — the GSI
-side upgrades more freely.
+Current: Android 12 (Pixel 3a sargo GSI) via GammaOS_Lite_v1.5.1 on the RK3566
+vendor BSP, kernel 4.19.232, Magisk root.
 
-## Path 1 (recommended): GammaOSNext — Android 14
+## The headline finding
 
-**TheGammaSqueeze/GammaOSNext** + **GammaOSNextDistribution-14** = official
-upgrade line: **Android 14, LineageOS 21 based GSI**, same distribution model
-(GSI + RK3566 vendor pack), tailored for handheld gaming consoles including
-RK3566 devices.
+**GammaOSNext (Android 13/14) does NOT support the RG353 series.** The
+supported list covers RG DS/DS Plus, RG Vita/Vita Pro, RG477x, RG556/557,
+T618 devices (RG405/505), Retroid, AYANEO Pocket, etc. The RG353 line is not
+even in the "PLANNED" section. The RK3566 RG353 line stays on the now
+**deprecated GammaOS-RK3566 v1.5.1 (Android 12)** repo.
 
-- Same flash procedure as GammaOS (vendor pack + GSI into super, boot, dtbo,
-  vbmeta, uboot).
-- The RK3566 vendor pack gets updated for 14 — HALs (graphics, audio, sensors,
-  wifi) are maintained upstream; the GSI side is replaceable.
-- Data migration: treat as a new install; use the backup-restore procedure
-  (07) — Magisk must be re-flashed into the new boot image.
+## How GammaOS flashing actually works (the safety model)
 
-## Path 2: newer GSI on the existing vendor (Android 13/14 GSIs)
+Three methods exist, and they make the device effectively brick-resistant:
 
-Because the system is a Treble GSI, **any compatible arm64 A/B GSI can be
-tested** against the existing vendor:
+1. **SD-card flasher (primary + recovery)**: SDDiskTool v1.69 (Windows) writes
+   an "Upgrade Firmware" microSD → insert into **TF Slot 1** → boot → the
+   device re-flashes its own eMMC. This is ALSO the un-brick path and the
+   "back to Stock OS" path (flash Anbernic's stock image the same way).
+2. **fastbootd**: upgrade from a working GammaOS install
+   (`adb reboot fastboot` → fastboot flasher script) — dynamic partitions
+   (system/vendor/odm inside `super`) update without touching the bootloader.
+3. **fastboot**: alternate method if SDDiskTool is unavailable.
 
-1. Backup (07).
-2. Fastboot/bootloader: flash GSI to `system` (inside `super` — resize
-   dynamic partitions or flash via fastbootd).
-3. Boot; expect breakage areas: HWC (display), audio policy, Keymaster,
-   sepolicy — the classic GSI pain points.
-4. Rollback = reflash the previous GSI (keep it archived).
+Notes: remove the TF2 card during install; do NOT use Win32DiskImager/Etcher
+on the GammaOS img (it is a Rockchip update package, not a raw image).
 
-Requirements/constraints:
-- Vendor is Android 12 BSP → Android 13/14 GSIs need vendorsepolicy additions
-  (VINTF compat). GammaOSNext solves this by shipping ITS OWN vendor updates —
-  prefer Path 1 unless experimenting.
-- Screen 640×480 landscape-native works in any GSI (no rotation hacks needed).
+## Ranked options for this device
 
-## Path 3: andr36oid-style LineageOS port (research, not near-term)
+| Option | Verdict |
+|---|---|
+| **Stay on GammaOS_Lite v1.5.1** (Android 12) | **Recommended today.** Stable, root, optimized, maintained-ish (deprecated = no updates, but also no churn) |
+| GSI experiment (Android 13/14 arm64 GSI via fastbootd) | Possible research; the vendor is Android 12 — expect HWC/audio/sepolicy breakage; full backup + SD-flash rollback required |
+| GammaOSNext | **Not available for RG353** — not released, not planned. Watch the supported-devices table |
+| Stock Anbernic firmware | Possible via SD-flash; loses root/optimizations |
 
-The RGB10 Max 2 project ran andr36oid (LineageOS 18.1) built from a
-device-specific kernel+vendor. A true LineageOS port for RK3566 = GammaOS's
-kernel/vendor reused with LineageOS build system — GammaOSNext already IS
-LineageOS 21-based, which fulfills this goal; a separate port would duplicate
-TheGammaSqueeze's work. Contribute upstream instead (device tree fixes,
-feature patches) — that IS the port.
+## The safest upgrade procedure (whenever trying anything)
 
-## Kernel upgrade notes
+0. **Backup everything (once, now — see 07)**: all partitions via root dd +
+   the full userdata tar. Store on the PC AND another drive.
+1. Archive the CURRENT working firmware zip (GammaOS_Lite v1.5.1 release for
+   RG353V) + SDDiskTool — this is the guaranteed rollback.
+2. Prepare the rollback SD card (stock OS image, "Upgrade Firmware" mode) and
+   put it aside — with that card, any failed experiment is one boot away from
+   recovery.
+3. Only then experiment: fastbootd flash of a GSI/GammaOSNext-style package,
+   keeping userdata untouched (wipe userdata only if the experiment wins).
+4. Test matrix after any flash: boot, display, audio (speaker + jack + HDMI),
+   wifi, both sticks + all buttons (incl. L3/R3), charging, sleep/wake,
+   GPU renderer string (`dumpsys SurfaceFlinger | grep GLES`).
+5. Rollback = the prepared SD card, boot, re-flash GammaOS_Lite, restore
+   userdata backup, re-apply Magisk scripts (adb-wifi + janitor + gamemode).
 
-- Kernel 4.19.232 is GammaOS's prebuilt. Newer Android needs newer kernel for
-  some HALs (e.g. wifi interfaces) — GammaOSNext ships a matching kernel.
-- GPU: `mali_kbase.ko` vendor module must match the kernel build exactly.
+## If GammaOSNext RG353 support ever appears
 
-## What to check before any upgrade
-
-1. Full backup of the current state (07) — including Magisk-patched boot.
-2. The exact target's flashing method (RKDevTool / rkdeveloptool loader mode).
-3. After upgrade: wireless adb fix (04) needs re-applying if Magisk scripts
-   are wiped (re-run after re-flashing Magisk).
+- Verify the release targets the RG353V specifically (V1 vs V2 displays are
+  both handled by GammaOS's 60 Hz fix, but check the release notes).
+- Follow the same safety procedure; userdata survives fastbootd upgrades only
+  if the release doesn't reformat userdata — assume it does and restore from
+  the backup.
