@@ -47,3 +47,4 @@ the OS build at any time.
 - ⏳ Optimization pass (governors/GPU/zram/debloat)
 - ⏳ Android upgrade test (GammaOSNext / Android 14)
 - ⏳ Regeneration procedure validation (build from upstream sources)
+| [11-arkos-side.md](11-arkos-side.md) | ArkOS dual-boot side: survey, PS2 verdict (not possible on Linux), optimization notes |
