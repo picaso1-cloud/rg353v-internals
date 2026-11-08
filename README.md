@@ -49,3 +49,4 @@ the OS build at any time.
 - ⏳ Regeneration procedure validation (build from upstream sources)
 | [11-arkos-side.md](11-arkos-side.md) | ArkOS dual-boot side: survey, PS2 verdict (not possible on Linux), optimization notes |
 | [12-ps2-linux-investigation.md](12-ps2-linux-investigation.md) | ARMSX2 on ArkOS: full investigation, why it cannot display, ROCKNIX path |
+| [13-archr-rk3566-plan.md](13-archr-rk3566-plan.md) | Arch-R (RK3566) port feasibility: mainline DTS exists, staged plan (ROCKNIX validation → Arch hybrid → upstream port) |
