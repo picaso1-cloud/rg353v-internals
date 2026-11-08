@@ -39,6 +39,10 @@ the OS build at any time.
 | [08-plan.md](08-plan.md) | Roadmap: study → optimize → upgrade → regenerate |
 | [09-kernel-dtb.md](09-kernel-dtb.md) | DTB decompiled: joystick/panel/charger/USB/GPU nodes vs the RGB10 Max 2 pain list |
 | [10-emulation-and-webasm.md](10-emulation-and-webasm.md) | Emulation limits both devices + browser WASM gaming verdicts |
+| [11-arkos-side.md](11-arkos-side.md) | ArkOS side: survey, PS2-on-Linux verdict, optimization notes |
+| [12-ps2-linux-investigation.md](12-ps2-linux-investigation.md) | ARMSX2 on ArkOS: full investigation, why it cannot display, ROCKNIX path |
+| [13-archr-rk3566-plan.md](13-archr-rk3566-plan.md) | Modern Linux / Arch-R for RK3566: feasibility + revised staged plan |
+| [14-rocknix-image-analysis.md](14-rocknix-image-analysis.md) | ROCKNIX Generic image offline teardown: boot chain, glibc/Mesa/kernel, ARMSX2 preinstall, Android/eMMC boot blocker |
 
 ## Status
 
@@ -47,6 +51,6 @@ the OS build at any time.
 - ⏳ Optimization pass (governors/GPU/zram/debloat)
 - ⏳ Android upgrade test (GammaOSNext / Android 14)
 - ⏳ Regeneration procedure validation (build from upstream sources)
-| [11-arkos-side.md](11-arkos-side.md) | ArkOS dual-boot side: survey, PS2 verdict (not possible on Linux), optimization notes |
-| [12-ps2-linux-investigation.md](12-ps2-linux-investigation.md) | ARMSX2 on ArkOS: full investigation, why it cannot display, ROCKNIX path |
-| [13-archr-rk3566-plan.md](13-archr-rk3566-plan.md) | Arch-R (RK3566) port feasibility: mainline DTS exists, staged plan (ROCKNIX validation → Arch hybrid → upstream port) |
+- ✅ ArkOS surveyed; PS2-on-Linux blocked by the display stack (documented)
+- ✅ ROCKNIX image analysed offline (correct Generic variant, verified)
+- ⏳ ROCKNIX on hardware: blocked on the Android/eMMC boot decision (see doc 14 §4)
