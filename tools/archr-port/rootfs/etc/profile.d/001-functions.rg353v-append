@@ -1,0 +1,28 @@
+
+# ---------------------------------------------------------------------
+# RG353V patch — appended by tools/archr-port/apply.sh. Do not remove.
+#
+# coreutils' chmod on this userspace issues the fchmodat2() syscall,
+# which only exists from Linux 6.6. On the 5.10 BSP kernel it returns
+# ENOSYS, so every set_setting failed and archr-levels core-dumped in a
+# restart loop at boot. Copy the permission bits with python3 instead:
+# it goes through fchmodat(), which 5.10 implements.
+# ---------------------------------------------------------------------
+function rewrite_config() {
+  local tmp rc=1
+  wait_lock
+  if tmp=$(mktemp "${J_CONF}.XXXXXX" 2>/dev/null)
+  then
+    if "$@" >"${tmp}" \
+       && python3 -c 'import os,sys
+st=os.stat(sys.argv[1]); os.chmod(sys.argv[2], st.st_mode)' "${J_CONF}" "${tmp}" \
+       && mv -f "${tmp}" "${J_CONF}"
+    then
+      rc=0
+    else
+      rm -f "${tmp}"
+    fi
+  fi
+  release_lock
+  return ${rc}
+}

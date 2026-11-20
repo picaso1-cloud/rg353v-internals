@@ -65,10 +65,27 @@ evidence across a reboot.
 
 ## Known unknowns to verify on hardware
 
-1. **sway on the vendor libmali G31 bookkeeping blob** — `gpudriver.log` said
-   `libmali bound OK (card=1 bind=1 display=1)`, but the blob is named for a
-   Mali-G31 while this SoC has a Mali-G52. If sway dies in EGL, the fallback is
-   `WLR_RENDERER=pixman`; the proper fix is the RK3566 G52 wayland-gbm blob.
+1. Whether the G52 DDK (`g29p1-12eac0`) hands sway a GBM EGL platform — if it
+   still fails, add `MALI_PLATFORM=gbm` or fall back to `WLR_RENDERER=pixman`.
 2. GPU devfreq node name (`fde60000.gpu`) — probed at boot by the quirk.
 3. `archr-levels` brightness/volume scaling for the kd35t133 backlight.
 4. Whether the launcher's hotkey = `system_hk` button 10 (F) works as expected.
+
+## What the first boot taught us (2026-11-21 night)
+
+Three boot cycles, ~70–90 s each, then the box went dark. The flight recorder
+(`/storage/.cache/log/`, error reports in `/storage/.cache/error-reports/`)
+named three independent bugs:
+
+| Bug | Evidence | Fix |
+|---|---|---|
+| **G31 DDK on a G52 GPU** — sway crash-looped 11× in 70 s, each attempt poking a kernel that then locked | `sway.log`: "The DDK (built for 0x7000003) is not compatible with this Mali GPU … 0x7040002" | the Mali-**G52** blob from the dArkOS image (`g29p1-12eac0`, proven on this very kernel), installed as `libmali.so.1.9.0` |
+| **rfkill soft-block resurrected every boot** — Wi-Fi never associated, `udhcpc: Network is down` | journal: `wpa_supplicant: rfkill: WLAN soft blocked`; poison file `/storage/.cache/rfkill/platform-fe000000.dwmmc:wlan` | delete the saved state, mask `systemd-rfkill.service`, unblock inside the `wpa-wlan0` wait loop |
+| **`chmod` → ENOSYS** — `set_setting` failed, `archr-levels` core-dumped on loop | error reports: `exit: core-dump (status 6)`; journal: `chmod: changing permissions … Function not implemented` | coreutils uses `fchmodat2()` (Linux 6.6+); `rewrite_config` now copies modes with python3 (`fchmodat`, exists on 5.10) |
+
+Also: this rootfs has **no `/var/log`** — everything lives in
+`/storage/.cache/log/` (boot.log, sway.log, journal). Use
+`read-p4-logs.sh` after a crash; it knows the real paths.
+
+`apply.sh --safe` masks the UI so the boot cannot reach the GPU; start it over
+SSH once the box is verified stable.

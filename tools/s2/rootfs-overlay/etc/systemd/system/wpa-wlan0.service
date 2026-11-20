@@ -5,9 +5,13 @@ Before=network.target
 [Service]
 Type=simple
 Environment=LD_LIBRARY_PATH=/usr/local/wpa/lib
-ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do [ -e /sys/class/net/wlan0 ] && break; sleep 1; done'
-ExecStartPre=/bin/sh -c '(command -v rfkill >/dev/null && rfkill unblock all) || for f in /sys/class/rfkill/*/soft; do echo 0 > $f 2>/dev/null; done; true'
+# Wait for wlan0 AND unblock rfkill on every pass: the 8821cs module (and
+# therefore its rfkill device) can appear long after this unit starts, and
+# systemd-rfkill may re-apply a stale soft-block right after we cleared one.
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do rfkill unblock all 2>/dev/null || for f in /sys/class/rfkill/*/soft; do echo 0 > $f 2>/dev/null; done; [ -e /sys/class/net/wlan0 ] && break; sleep 1; done; rfkill unblock all 2>/dev/null; true'
 ExecStart=/usr/local/wpa/wpa_supplicant -i wlan0 -c /etc/wpa_supplicant/wpa_supplicant-wlan0.conf -D nl80211
+# Late unblock, after udev/systemd-rfkill had their chance to restore a block
+ExecStartPost=/bin/sh -c 'sleep 2; rfkill unblock all 2>/dev/null; true'
 Restart=always
 RestartSec=3
 [Install]
