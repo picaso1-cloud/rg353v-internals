@@ -86,6 +86,11 @@ answered immediately.
 **Cost:** one file copy on a working card. Fully revertible (copy the original
 `uInitrd` back). No reflash.
 
+**Built (2026-11-20):** `tools/s1/` — the patched initramfs
+(`uInitrd.s1`, sha256 `94544e46…`), the stock backup, `install-s1.sh`,
+`revert-s1.sh`, and `19-s1-initramfs.md` (procedure, expected output, failure
+matrix).
+
 ### S2 — Own the userspace
 
 Still dArkOS kernel + dtb + loader. Replace the root filesystem with our own:

@@ -52,6 +52,7 @@ the OS build at any time.
 | [17-archr-bringup-plan.md](17-archr-bringup-plan.md) | **Current plan** — ground-up Arch bring-up on the proven dArkOS chain: S0–S5, one variable per boot, panel console first |
 | [18-archr-upstream-analysis.md](18-archr-upstream-analysis.md) | **Arch-R upstream** (`archr-linux/Arch-R`): what it is, RK3566 device-profile files to add, package gaps, transplant rule |
 | [docs/ARCHIVE.md](docs/ARCHIVE.md) | Index of closed tracks/dead ends (ROCKNIX, hybridA–D) with evidence pointers — nothing deleted |
+| [19-s1-initramfs.md](19-s1-initramfs.md) | **S1 executed**: patched initramfs (banner + dmesg + `S1-LOG.txt` to boot FAT), artifacts and install/revert scripts in `tools/s1/` |
 
 ## Status
 
