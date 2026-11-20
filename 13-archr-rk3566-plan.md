@@ -103,3 +103,19 @@ Validate against Stage 0/2 results, then propose upstream to archr-linux.
 When/if this is picked up: flash the Generic image to a **TF1** card, boot it
 (Android on the eMMC is untouched; remove the TF1 card to boot Android again),
 and run the Stage-0 checks. No eMMC wipe or chainload is needed for that.
+
+---
+
+## 2026-11-20 status
+
+- ROCKNIX 20261101 (the "modern stack" reference above) **fails to boot on
+  this RG353V unit** (loader rejection proven via dArkOS boot-chain
+  comparison — see `14-rocknix-image-analysis.md` and
+  `16-gpu-vulkan-panvk-status.md`). dArkOS v11072026 boots and is the
+  RG353V baseline.
+- If the ROCKNIX splice (dArkOS loader + ROCKNIX system) ever boots, an
+  Arch-R-style port becomes a packaging exercise on top of a known-good
+  chain: dArkOS loader (idbloader + u-boot FIT) + mainline 7.x kernel
+  (panfrost/panvk G52) + ArchARM aarch64 rootfs + sway/ES frontend.
+- Until then: dArkOS remains the practical RG353V Linux; Arch port stays
+  scaffolded, not started.

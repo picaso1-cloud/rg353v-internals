@@ -253,3 +253,29 @@ First boot expands `STORAGE` to fill the card. Keep the card A2/quality class
 (same advice as the RGB10 Max 2 guide). Put the card in **TF1**; Android on the
 eMMC is untouched and boots again when the TF1 card is removed. Keep ROMs/BIOS
 on the **TF2** card.
+
+---
+
+## 2026-11-20 — ROCKNIX 20261101 RK3566 Generic: boot failure on THIS RG353V unit
+
+- Flashed byte-verified to the TF1 card (readback = image SHA256 match):
+  `ROCKNIX` 2 G vfat (Image, uInitrd, device_trees incl. RG353V dtbs,
+  extlinux.conf, SYSTEM squashfs) + 32 MiB STORAGE.
+- Device result: **skips the SD card, boots eMMC Android** (BootROM falls
+  through). Earlier ArkOS card state was ruled out (STORAGE expansion fix
+  verified working at fs level; card content diff vs pristine image showed
+  the device had mounted STORAGE — boot ran, then froze later in the flow
+  and fell back on subsequent attempts).
+- **Raw boot-chain comparison vs dArkOS v11072026** (the OS that DOES boot on
+  this unit): idbloader (RKNS hdr + DDR blob + SPL) and all u-boot FIT
+  regions differ. ROCKNIX: `FIT image for U-Boot with bl31 (TF-A)`.
+  dArkOS: `FIT Image with ATF/OP-TEE/U-Boot/MCU`. IDB headers identical
+  except one byte (0x73: DDR blob size 116 vs 108 sectors).
+- Conclusion: ROCKNIX's generic RK3566 boot chain is rejected/fails on this
+  unit. Splice hybrids (dArkOS loader + ROCKNIX partitions) built for the
+  experimental test: `rg353v-backup/images/hybridA…/hybridB…img.gz`.
+  Meanwhile the device runs **dArkOS v11072026** successfully.
+- ROCKNIX payload worth noting (verified in SYSTEM squashfs): kernel 7.2.11,
+  panfrost.ko, panfrost_dri.so, libvulkan_panfrost.so +
+  panfrost_icd.aarch64.json, 00-panvk-defaults.conf — i.e. the open-source
+  panfrost/panvk stack ships here but is unreachable while the loader fails.
