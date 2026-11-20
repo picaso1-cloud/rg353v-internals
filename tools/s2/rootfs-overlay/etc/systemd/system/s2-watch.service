@@ -1,0 +1,10 @@
+[Unit]
+Description=S2 boot watch (10s snapshots to /root/s2-BOOTLOG.txt)
+After=local-fs.target
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/s2-watch.sh
+Restart=always
+RestartSec=2
+[Install]
+WantedBy=multi-user.target
