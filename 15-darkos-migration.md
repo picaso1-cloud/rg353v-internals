@@ -201,3 +201,21 @@ On an 8 GB card (8,053,063,680 B): `1 - 11/8.05 = -0.366` → `--free-percent=-3
 
 **Rule:** dArkOS needs **≥ 11 GB, practically ≥ 16 GB** (the certified 238 GiB
 card is the right one). Do not judge dArkOS, or S1, on an 8 GB card.
+
+### 2026-11-21 — warm reboot loses the SD; cold start is required
+
+After the failed expansion the device rebooted and landed on **Android**. A
+**full power-off, 10 s wait, power-on** booted dArkOS normally ("running as it
+should").
+
+So on this unit the eMMC-SPL SD probe is **not reliable across a warm reboot**:
+`reboot` from Linux/Android can end on the eMMC chain, while a cold start finds
+the card. Operational rules:
+
+1. Any SD-boot test on the RG353V = **cold start** (power off, wait, power on).
+2. Never conclude "the card is broken" from a post-reboot Android landing.
+3. This also means the earlier hybridA–D results stand as tested (they were cold
+   boots), but any future "reboot to test again" must be a power cycle.
+
+Useful side effect: the 8 GB card currently boots dArkOS with **no `/roms`**
+(p5 was deleted by the failed expansion) — fine for S1/S2 work, not for gaming.
