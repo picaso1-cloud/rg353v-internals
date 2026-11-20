@@ -47,6 +47,9 @@ the OS build at any time.
 | [12-ps2-linux-investigation.md](12-ps2-linux-investigation.md) | ARMSX2 on ArkOS: full investigation, why it cannot display, ROCKNIX path |
 | [13-archr-rk3566-plan.md](13-archr-rk3566-plan.md) | Modern Linux / Arch-R for RK3566: feasibility + revised staged plan |
 | [14-rocknix-image-analysis.md](14-rocknix-image-analysis.md) | ROCKNIX Generic image offline teardown: boot chain, glibc/Mesa/kernel, ARMSX2 preinstall, Android/eMMC boot blocker |
+| [15-darkos-migration.md](15-darkos-migration.md) | ArkOS → dArkOS migration record, RG353V boot-flow research, ROCKNIX wipe-Android requirement, hybridA–D results |
+| [16-gpu-vulkan-panvk-status.md](16-gpu-vulkan-panvk-status.md) | GPU/Vulkan status: vendor blob vs panfrost/panvk, hybrid experiments, Rockchip partition-GUID finding |
+| [17-archr-bringup-plan.md](17-archr-bringup-plan.md) | **Current plan** — ground-up Arch bring-up on the proven dArkOS chain: S0–S5, one variable per boot, panel console first |
 
 ## Status
 
@@ -57,4 +60,5 @@ the OS build at any time.
 - ⏳ Regeneration procedure validation (build from upstream sources)
 - ✅ ArkOS surveyed; PS2-on-Linux blocked by the display stack (documented)
 - ✅ ROCKNIX image analysed offline (correct Generic variant, verified)
-- 📚 ROCKNIX on hardware: deferred by decision (documentation-only); when resumed, flash the Generic image to a **TF1** card (TF1 boots first, eMMC Android untouched, TF2 = ROMs)
+- ❌ ROCKNIX on RG353V hardware: **closed 2026-11-20** — 4/4 variants land on Android; the eMMC boot chain gates the TF1 card (see doc 15)
+- 🚧 Arch bring-up: **active plan in doc 17**, starts at S1 (custom initramfs banner on the working dArkOS card — no reflash)

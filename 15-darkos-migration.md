@@ -128,3 +128,45 @@ eMMC (unofficial, brick-risk, unnecessary for card-based setups).
 | ROCKNIX 20261101 | **must wipe Android (ADB)** | mainline 7.2.11 + panfrost/panvk | needs eMMC wipe + backup first |
 | ArkOS 07/31/2025 update | kept | no development anymore | n/a |
 | Arch port | depends on design | own kernel choice | scaffold |
+
+---
+
+## 2026-11-20 — hybridD result: ROCKNIX track CLOSED
+
+**Hardware result:** hybridD also boots straight to Android. That is 4/4
+ROCKNIX-based images rejected (original, hybridA, hybridB, hybridC, hybridD —
+hybridC was superseded before testing, so 4 tested).
+
+### What was matched in hybridD (verified byte-exact, laptop-side)
+
+| Region | dArkOS (boots) | hybridD | Status |
+|---|---|---|---|
+| p1 `uboot` @ 8 MiB (FIT: ATF×6 + U-Boot) | `4cee0306…` | `4cee0306…` | **identical** |
+| p2 `resource` @ 12 MiB (RKNS) | `4004bb43…` | `4004bb43…` | **identical** |
+| GPT types/names/disk GUID | Rockchip `A60B…`/`D46E…` | same | identical |
+| p3 name + fs label | `dArkOS_Fat` | `dArkOS_Fat` | identical |
+| **0–8 MiB (idbloader `RKNS` @ 32 KiB)** | `d1a362f7…` | `c10dcabc…` | **DIFFERS** |
+
+So the last uncontrolled variable is the **idbloader region** (DDR init + SPL,
+32 KiB … 8 MiB). Everything from 8 MiB onward was dArkOS's, byte for byte.
+
+### Conclusion (final for this cycle)
+
+- Without serial console we cannot see whether the eMMC SPL, the SD SPL, or
+  dArkOS u-boot is the stage that gives up. Each new card variant was a guess
+  in the dark, and all of them cost a flash + a device round-trip.
+- The documented supported path for ROCKNIX on RG353 **P/M/V** remains "wipe
+  the Android partition from the eMMC" (ROCKNIX wiki). That is the only
+  *known-good* ROCKNIX configuration, and it destroys GammaOS Android unless an
+  eMMC backup is taken first.
+- **Decision: stop flashing ROCKNIX variants.** dArkOS v11072026 is the RG353V
+  Linux baseline. Further Linux work moves to the ground-up bring-up plan in
+  `17-archr-bringup-plan.md`, which changes **one variable per boot** on top of
+  the proven dArkOS chain.
+
+### Method lesson (recorded so it is not repeated)
+
+Four variables were changed at once across the hybrid series (loader bytes,
+partition numbering, partition type GUIDs/names, kernel+dtb+cmdline). Every
+failure was therefore un-attributable. A port must instead hold the working
+chain fixed and move one layer at a time, with a visible output at each stage.

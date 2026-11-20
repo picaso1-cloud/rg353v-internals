@@ -119,3 +119,15 @@ and run the Stage-0 checks. No eMMC wipe or chainload is needed for that.
   (panfrost/panvk G52) + ArchARM aarch64 rootfs + sway/ES frontend.
 - Until then: dArkOS remains the practical RG353V Linux; Arch port stays
   scaffolded, not started.
+
+### 2026-11-20 (later) — ROCKNIX track closed; ground-up plan opened
+
+- hybridD (dArkOS loader + dArkOS-identical GPT + dArkOS_Fat + ROCKNIX
+  kernel/dtb) **also boots straight to Android** → 4/4 ROCKNIX variants
+  rejected. See `15-darkos-migration.md` (final section).
+- Stop flashing other distros. The port now proceeds as a **staged bring-up on
+  top of the proven dArkOS chain** — one layer per boot, visible output at each
+  stage: `17-archr-bringup-plan.md` (S1 = custom initramfs banner on the panel
+  using the working card, no reflash).
+- The ROCKNIX image remains useful **offline** as a parts source (mainline
+  kernel config, `panfrost`/`panvk` Mesa layout, u-boot board code).
