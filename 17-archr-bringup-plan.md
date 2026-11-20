@@ -119,6 +119,13 @@ stack that ROCKNIX had and dArkOS does not.
 **Acceptance:** S2's rootfs boots with our kernel; `dmesg | grep -i panfrost`
 shows the G52 probe; `vulkaninfo` lists a panvk device (once Mesa is built).
 
+### S3.5 — Optional: eMMC chain-load bridge (GarlicOS trick)
+
+`20-emmc-chainload-bridge.md`: patch the Android `boot`/`recovery` **ramdisk** so
+the stock eMMC chain chain-loads a rootfs from SD. It does **not** lift the SD
+u-boot gate; it matters only if `CONFIG_KEXEC` exists (then it is a route to a
+mainline kernel without wiping Android). Read-only probes cost one SSH session.
+
 ### S4 — Own the loader
 
 Only now touch the boot chain: build `idbloader` (DDR init blob + SPL) and

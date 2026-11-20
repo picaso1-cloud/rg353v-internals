@@ -53,6 +53,7 @@ the OS build at any time.
 | [18-archr-upstream-analysis.md](18-archr-upstream-analysis.md) | **Arch-R upstream** (`archr-linux/Arch-R`): what it is, RK3566 device-profile files to add, package gaps, transplant rule |
 | [docs/ARCHIVE.md](docs/ARCHIVE.md) | Index of closed tracks/dead ends (ROCKNIX, hybridA–D) with evidence pointers — nothing deleted |
 | [19-s1-initramfs.md](19-s1-initramfs.md) | **S1 executed**: patched initramfs (banner + dmesg + `S1-LOG.txt` to boot FAT), artifacts and install/revert scripts in `tools/s1/` |
+| [20-emmc-chainload-bridge.md](20-emmc-chainload-bridge.md) | **GarlicOS-style eMMC chain-load** on RK3566: what it buys (independent boot path), what it does not (no ROCKNIX gate bypass), decisive unknowns (fastboot boot, kexec), E0–E4 ladder |
 
 ## Status
 
