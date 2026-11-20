@@ -59,6 +59,7 @@ the OS build at any time.
 | [23-s3-mainline-kernel.md](23-s3-mainline-kernel.md) | **S3**: swap to ROCKNIX mainline 7.2.11 (panfrost + rtw88_8821cs), staged payload + `tools/s3/install-kernel.sh` |
 | [24-live-ram-system.md](24-live-ram-system.md) | **RAM-only live system + dual-mode toggle** (`/NORMAL` on p3): SSH lab that leaves the card free — no more card pulls for rootfs work |
 | [25-why-rocknix-wont-boot.md](25-why-rocknix-wont-boot.md) | **Sourced answer**: eMMC legacy bootloader gates SD boot; ROCKNIX wiki requires wiping Android; reversible options + backup sizes |
+| [26-garlicos-trick-on-rk3566.md](26-garlicos-trick-on-rk3566.md) | **GarlicOS trick analysed**: cannot reach mainline (uses the same eMMC chain + BSP kernel, no kexec); the *recovery-partition* variant is a safe rescue that keeps Android |
 
 ## Status
 
