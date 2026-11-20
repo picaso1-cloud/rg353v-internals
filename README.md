@@ -57,6 +57,7 @@ the OS build at any time.
 | [21-boot-chain-verified.md](21-boot-chain-verified.md) | **Boot chain verified on hardware** (S1 log + SSH): extlinux read but `root=` forced, dArkOS initramfs hardcodes `/dev/mmcblk1p4`, no kexec, mali kbase built-in |
 | [22-s2-arch-rootfs.md](22-s2-arch-rootfs.md) | **S2 accepted**: Arch-R rootfs + dArkOS 5.10.226 on p4, boots to multi-user in 13 s, Wi-Fi `CPE-C391` + DHCP `.198`, SSH working |
 | [23-s3-mainline-kernel.md](23-s3-mainline-kernel.md) | **S3**: swap to ROCKNIX mainline 7.2.11 (panfrost + rtw88_8821cs), staged payload + `tools/s3/install-kernel.sh` |
+| [24-live-ram-system.md](24-live-ram-system.md) | **RAM-only live system + dual-mode toggle** (`/NORMAL` on p3): SSH lab that leaves the card free — no more card pulls for rootfs work |
 
 ## Status
 
