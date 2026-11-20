@@ -1,0 +1,30 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2023 JELOS (https://github.com/JustEnoughLinuxOS)
+#
+# Anbernic RG353V/VS (RK3566, kd35t133 v2 panel 0x3821).
+# The kernel reads the model string from the DT as "Anbernic RG353V/VS";
+# /etc/profile.d/002-autostart turns the slash into a dash, so this folder
+# is named "Anbernic RG353V-VS".
+#
+# Facts from the dArkOS 5.10 DTB (rk3566-353v.dtb):
+#   - audio: rockchip,multicodecs-card + rk817 codec; the mux is
+#     "Playback Path" with SPK (class-D) / HP (headphone) positions.
+#     The speaker is NOT wired to the HP lines (unlike RG351M/R36S),
+#     so SPK is the speaker path.
+#   - thermal: soc-thermal = thermal_zone0, gpu-thermal = thermal_zone1.
+#   - LEDs: gpio-leds battery_full / battery_charging / low_power are
+#     driven by kernel triggers; there is no single addressable RGB LED,
+#     so DEVICE_BATTERY_LED_STATUS / DEVICE_PWR_LED_GPIO stay unset.
+#   - gamepad: singleadc-joypad "retrogame_joypad" (one evdev with all
+#     buttons, the D-pad as buttons 13-16 and the two sticks as axes 0-3).
+
+cat <<EOF >/storage/.config/profile.d/001-device_config
+# Device Features
+DEVICE_PLAYBACK_PATH_SPK="SPK"
+DEVICE_PLAYBACK_PATH_HP="HP"
+DEVICE_TEMP_SENSOR="/sys/devices/virtual/thermal/thermal_zone0/temp"
+DEVICE_GPU_TEMP_SENSOR="/sys/devices/virtual/thermal/thermal_zone1/temp"
+DEVICE_HAS_FAN="false"
+DEVICE_HAS_HDMI="false"
+EOF

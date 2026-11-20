@@ -1,0 +1,19 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2023 JELOS (https://github.com/JustEnoughLinuxOS)
+#
+# RK3566 clock domains. The BSP kernel names the GPU devfreq node after the
+# DT unit address (fde60000.gpu); /sys/class/devfreq is the stable fallback
+# if the platform path differs. Written at boot so the paths are probed on
+# the running kernel, not guessed on the laptop.
+
+gpu=/sys/devices/platform/fde60000.gpu/devfreq/fde60000.gpu
+[ -d "$gpu" ] || gpu=/sys/class/devfreq/fde60000.gpu
+dmc=/sys/devices/platform/dmc/devfreq/dmc
+[ -d "$dmc" ] || dmc=/sys/class/devfreq/dmc
+
+cat <<EOF >/storage/.config/profile.d/010-governors
+CPU_FREQ=("/sys/devices/system/cpu/cpufreq/policy0")
+GPU_FREQ=("$gpu")
+DMC_FREQ=("$dmc")
+EOF
