@@ -27,6 +27,16 @@ Verified by diffing pristine vs patched extractions: only the two items above.
 `patch-initramfs.sh` rebuilds `uInitrd.s1` **byte-identically** from
 `uInitrd.orig` (timestamps normalised, owner 0:0, `cpio --reproducible`).
 
+## Prebuilt image (no card surgery needed)
+
+`../rg353v-backup/images/dArkOS_S1.img` is the working dArkOS image with S1
+already installed (`sha256 5ed05b2a4d5f4f31889eb9182ec4bd4be406f24e8a13c765d845f5ea7d5a47b4`).
+Flash it and the card is ready:
+
+```bash
+tools/s1/flash-image.sh --image ../rg353v-backup/images/dArkOS_S1.img --device /dev/mmcblk0
+```
+
 ## Install / revert
 
 ```bash
