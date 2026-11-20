@@ -251,6 +251,12 @@ was sitting outside the project root (`~/rgb10max2-archr`, now
 | "Driver present" ≠ "hardware powered" (RK817 OTG latch for Wi-Fi) | Check regulators/rails first when something is silent on RK3566 |
 | Separate `…-DEBUGPROBE.img` variant with its own key | Cheap pattern for instrumented bring-up images — reuse at S3 |
 
+**Kit:** the Max 2 work is packaged as `~/Andr36oid/archr-device-kit`
+(published: `github.com/picaso1-cloud/archr-device-kit`) — profile-per-device
+injector, `bootscr.py` anchors, quirks/storage payloads, and env
+snapshot/restore. The RG353V profile is already stubbed there
+(`devices/rg353v/profile.env`) and becomes active once an RK3566 image exists.
+
 **Workspace rule (2026-11-20):** all device data now lives under
 `~/Andr36oid/` (`rg353v-backup`, `rg405v-backup`, `rg405v-gammaos`,
 `rg405v-apks`, `rgb10max2-archr`, `toolchains`); the old `~/<name>` paths are
