@@ -5,6 +5,8 @@ Before=network.target
 [Service]
 Type=simple
 Environment=LD_LIBRARY_PATH=/usr/local/wpa/lib
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do [ -e /sys/class/net/wlan0 ] && break; sleep 1; done'
+ExecStartPre=/bin/sh -c '(command -v rfkill >/dev/null && rfkill unblock all) || for f in /sys/class/rfkill/*/soft; do echo 0 > $f 2>/dev/null; done; true'
 ExecStart=/usr/local/wpa/wpa_supplicant -i wlan0 -c /etc/wpa_supplicant/wpa_supplicant-wlan0.conf -D nl80211
 Restart=always
 RestartSec=3

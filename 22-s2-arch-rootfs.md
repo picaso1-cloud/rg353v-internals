@@ -201,3 +201,35 @@ interrupted mid-pacman, so a stale state/lock is possible; checked, none found.
 
 **Rule:** any log path baked into Arch-R must use `/storage` or `/` — never
 `/root`.
+
+---
+
+## 2026-11-21 — first real log: the system boots; Wi-Fi was RF-killed
+
+`/s2-BOOTLOG.txt` (10 s snapshots) finally captured a boot:
+
+```
+13.28s Reached target multi-user.target
+13.28s Reached target graphical.target
+13.28s Reached target archr.target
+13.24s connmand: wlan0 {newlink} address 34:7D:E4:10:50:22
+13.52s wpa_supplicant: Successfully initialized
+13.55s wpa_supplicant: rfkill: WLAN soft blocked      <-- no Wi-Fi
+```
+
+So Arch-R has been booting fully all along; the splash is only a *display*
+issue (nothing draws to the framebuffer console after switch_root).
+
+Fixes applied (rootfs overlay):
+
+| Fix | Detail |
+|---|---|
+| rfkill | `rfkill unblock all` (fallback: write 0 to `/sys/class/rfkill/*/soft`) before wpa starts |
+| race | wait for `/sys/class/net/wlan0` before wpa and before udhcpc (driver probe ≈ 11 s) |
+| connman conflict | `connman`/`connman-vpn` masked — they were also binding `wlan0` |
+| dead units | `s2-bootlog.{service,timer}`, `s2-report.service` removed (failed every boot) |
+| watcher | uses `ip addr` (busybox `ip` has no `-br`), prints a tty1 heartbeat each cycle |
+| **TF2 safety** | `archr-automount`/`archr-roms-migrate` masked — Arch-R was mounting the Samsung ROM card at `/storage/games-external/roms` and writing to it |
+
+Also learned: `/storage` is exfat (chmod → `ENOSYS`), so Arch-R config writes must
+not depend on unix permissions.
