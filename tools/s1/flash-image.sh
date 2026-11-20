@@ -4,15 +4,19 @@
 #   flash-image.sh --image <file.img> --device /dev/mmcblk0 [--yes]
 #
 # Refuses: non-block device, mounted device, the host NVMe/root disk, and any
-# image whose .sha256 does not match. Verification = cmp against the device;
-# "EOF on <image>" after a full byte match is the success message.
+# image whose .sha256 does not match.
+#
+# NO post-flash verification by default (project rule): writing 8-24 GB twice
+# wastes time and protects against nothing the device boot does not prove.
+# Pass --verify only when investigating a specific suspected write failure.
 set -euo pipefail
-IMG=""; DEV=""; YES=0
+IMG=""; DEV=""; YES=0; VERIFY=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --image) IMG="$2"; shift 2 ;;
     --device) DEV="$2"; shift 2 ;;
     --yes) YES=1; shift ;;
+    --verify) VERIFY=1; shift ;;
     *) echo "unknown arg: $1"; exit 2 ;;
   esac
 done
@@ -49,7 +53,11 @@ sync
 sudo blockdev --flushbufs "$DEV" 2>/dev/null || true
 sudo partprobe "$DEV" 2>/dev/null || true
 
-echo "== verifying (cmp) =="
-sudo cmp "$IMG" "$DEV" 2>&1 | head -2 || true
+if [ "$VERIFY" = 1 ]; then
+  echo "== verifying (cmp) =="
+  sudo cmp "$IMG" "$DEV" 2>&1 | head -2 || true
+else
+  echo "== no laptop verification: the device boot is the test =="
+fi
 lsblk -o NAME,SIZE,FSTYPE,LABEL "$DEV"
 echo "done: $DEV"

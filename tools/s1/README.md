@@ -37,6 +37,9 @@ Flash it and the card is ready:
 tools/s1/flash-image.sh --image ../rg353v-backup/images/dArkOS_S1.img --device /dev/mmcblk0
 ```
 
+**No post-flash verification.** The flasher writes and exits; the device boot is
+the test. `--verify` exists only for investigating a suspected write failure.
+
 ## Install / revert
 
 ```bash
