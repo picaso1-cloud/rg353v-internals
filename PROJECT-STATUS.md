@@ -1,6 +1,6 @@
 # PROJECT STATUS — Handhelds (compaction checkpoint)
 
-**Date:** 2026-11-08 · **Purpose:** complete cross-project state so context can
+**Date:** 2026-11-12 · **Purpose:** complete cross-project state so context can
 be compacted and work resumed from this file alone. Mirrored in the device repos.
 
 > **Start here:** `MASTER-PLAN.md` (goals, shared architecture, roadmap) ·
@@ -9,16 +9,187 @@ be compacted and work resumed from this file alone. Mirrored in the device repos
 
 ---
 
+## Session recap — 2026-11-21 (latest)
+
+**Full resume sheet: `rg353v-internals/HANDOFF-2026-11-21.md`.**
+
+### RG353V — ArchR is running, mainline is blocked by the loader
+- **Working:** ArchR 20261113 (Arch Linux ARM) on dArkOS **5.10.226**, TF1 p4, Wi-Fi `CPE-C391`
+  → **192.168.0.198**, `ssh root@192.168.0.198` (pw `ark`), panel dashboard, vendor Vulkan 1.3.276.
+- **S1** (initramfs banner/log) ✅ · **S2** (our rootfs on their kernel) ✅ · **S3** (mainline kernel) ❌:
+  ROCKNIX 7.2.11 `Image` never reaches `init` on a clean card (likely ATF/PSCI mismatch; needs UART).
+- **Root cause of the ROCKNIX wall (sourced):** the eMMC legacy bootloader gates SD boot; official wiki
+  requires wiping Android. **Decision: keep Android** (needed for the andr36oid port) → ArchR-on-5.10 is the ceiling.
+- **New infrastructure:** RAM-only **live system** + **dual-mode boot** (`/NORMAL` on p3) — rootfs work and
+  recovery now happen over SSH with the card free. No more card pulls for userspace work.
+- **Corruption lessons:** hard power-offs corrupted ext4+FAT; only `poweroff`/`reboot`; keep p3 half-free;
+  `chmod` fails in Arch (6.10 ABI on 5.10) → use `python3 os.chmod`.
+- **Docs 17–26** written and pushed; `archr-device-kit` published; workspace consolidated under
+  `~/Andr36oid` with compatibility symlinks.
+
+### Repos pushed
+`rg353v-internals` (17–26, HANDOFF), `rg405v-internals` (19, ARCHIVE),
+`rgb10max2-internals` (12, Arch-R note), `archr-device-kit` (published).
+
+---
+
+## Session recap — 2026-11-20
+
+### Workspace consolidation (single-root rule)
+All device data moved under `~/Andr36oid/` — `rg353v-backup`, `rg405v-backup`,
+`rg405v-gammaos`, `rg405v-apks`, `rgb10max2-archr`, `toolchains`. Old `~/<name>`
+paths are now **symlinks** (no docs/scripts broken). See `WORKSPACE.md`.
+
+### Arch-R found already attempted (RGB10 Max 2)
+`~/Andr36oid/rgb10max2-archr/` holds a **2026-11-15/16 Arch-R port attempt**:
+4 device changes (board DTB, ADC range in `clone_boot.ini`, Wi-Fi RK817 OTG
+latch quirk, audio quirk), 40 GB of **patched release images**, and a build that
+**fails at `cmake:host`** (4 attempts). Recorded in
+`rgb10max2-internals/12-archr-port-2026-11.md`. Method adopted for the RG353V
+Arch port: patch a released image, don't build one.
+
+### RG353V
+ROCKNIX track **closed** (4/4 variants → Android; hybridD's only unmatched
+region is the 0–8 MiB idbloader). Arch bring-up plan is now `17-…` (S0–S5, one
+variable per boot) + `18-…` (Arch-R `devices/RK3566` profile analysis).
+Next: S1 = custom `/uInitrd` banner on the working dArkOS card.
+
+### RG405V
+GarlicOS 2.0 bootloader analysed (`19-…`): patch stock `vendor_boot` ramdisk +
+`DHTB`-signed `vbmeta`, boot an f2fs rootfs from exFAT SD with the **vendor**
+kernel via `chroot`. Bootloader problem solved; Arch port = f2fs rootfs + init.
+
+### Repos pushed
+`rg353v-internals` (docs 17, 18, ARCHIVE), `rg405v-internals` (doc 19, ARCHIVE),
+`rgb10max2-internals` (docs 12 + Arch-R note).
+
+---
+
+## Session recap — 2026-11-12
+
+### RG405V
+- **PS2 custom GPU driver WORKING:** **MaliSX2 0.4.1** on **Mali-G52 MP2**
+  via a **patched ARMSX2 Nightly 20261111** + **Renderer = Vulkan**.
+  **Capcom vs. SNK 2** booted through the memory-card format to the title /
+  VS-ranking screen. Emulog: `driver is malisx2`,
+  `GS: Classic renderer active (renderer=Vulkan)`.
+- **Two traps:** (1) ARMSX2 hides the MaliSX2 page on G52 because
+  `isMaliSX2Supported()` is false; the driver itself supports G52
+  experimentally. (2) `Auto` renderer picks **OpenGL** on G52; you must select
+  **Vulkan** or the custom driver is never used.
+- **Patch/build:** `rg405v-internals/tools/patches/armsx2-malisx2-g52/`;
+  full reproduction + other-emulator matrix:
+  `rg405v-internals/10-emulator-gpu-drivers.md`.
+- Patched nightly SHA-256 `76924c41…`; MaliSX2 0.4.1 `feb44fcb…`; both on the
+  SD card `Drivers/` and in the customisation backup.
+- **Customisation backup:** `/home/souhail/rg405v-backup/custom-2026-11-12/`
+  (service.d, mousemode/hidpad/dpadkeys/usbmode/perfmode, Panel APK, Daijishō
+  data, settings, drivers, `MANIFEST.sha256`, restore README).
+- **Unbricker:** downloaded/verified (2,549,946,021 bytes, SHA-256
+  `9212eec4…`, `7z t` OK). GammaOS RG405V package also local. Recovery
+  decision tree: `rg405v-internals/RECOVERY.md`.
+- **Wi-Fi:** verified; Settings dialog dismisses on Connect by design; the join
+  completes. `sprd-wlan` kernel log flood split into its own capture
+  (`tools/rg405v-log.sh`, 4 MiB logd buffers).
+- **Display:** **640x480 is the native RG405V panel** (official 4" IPS spec);
+  the earlier RG505-panel theory was wrong. Do not change `wm size`.
+- **SD card:** ROMs SNES/NeoGeo/NDS/PS2/PSX/OpenBOR/N64/PSP + BIOS + APKs +
+  Drivers; **89 GB used / 28 GB free** (117 GB exFAT).
+- **PS2 test status:** CvS2 verified; Metal Slug Anthology, Grandia II,
+  GTA/Crash still to test. OSD FPS was off.
+
+### Linux / GPU track — PARKED (2026-11-12)
+
+- **RG405V Linux is feasible but parked.** Board is `ums512-1h10` (same as
+  `rg-rotate` mainline 7.1). Blockers: PanVK G52 = Vulkan 1.3 **experimental**
+  (non-conformant, gated); MaliSX2 Linux needs **kbase** and is **ARMSX2-only**;
+  Mesa kmsro ↔ sprd-drm unproven; dual-boot needs custom U-Boot/SPL.
+- **No eMMC/U-Boot/SPL writes were made.** Android/GammaOS stays the daily
+  driver. ADR-011 + `rg405v-internals/15-linux-gpu-parking-and-references.md`
+  hold the resume triggers and the reference review.
+
+### AI optimization layer — reviewed, assist-only (2026-11-12)
+
+- **Needle 3 runs on the RG405V** (android-arm64 4.1.0, 20 L): 2.0–2.4 s,
+  ~76 MB, 8/10 curated prompts; 8 layers is 1/10 and disqualified; confidence
+  on correct calls 0.38–0.88, so it cannot be the only gate.
+- **Verdict:** keep the shadow/replay discipline, build a deterministic session
+  table first, use AI offline on the watchdog logs, and allow the on-device
+  model only as an on-demand 5-tool assistant. No resident daemon, no
+  auto-debloat/zram/freezer/FSR. ADR-012, doc 17, `tools/cactus-bench/`.
+
+### ROM hub
+- **Transcend merge COMPLETE:** 11 systems, **190.9 GiB added**; hub
+  **802 GB used / 131 GB free**. PSX CHD set (533 CHDs, 50.9 GiB) deliberately
+  deferred (would take the drive to ~92% full). `pokemini` skipped (duplicate
+  of `pcfx`); `steam/wiiu/xbox/windows` empty.
+- `chkdsk /f` on Windows still recommended after the `ntfsfix` that made the
+  volume writable.
+
+### RGB10 Max 2
+- Port **v0.1.0** released and hardware-verified (earlier).
+- No changes this session.
+
+### RG353V
+- Unchanged; docs only.
+
+---
+
 ## Devices & access
 
 | Device | SoC | OS | Access |
 |---|---|---|---|
-| **Powkiddy RGB10 Max 2** | RK3326, 1 GB | andr36oid (Android 11) on SD | `adb connect <ip>:5555` (192.168.0.99 / 192.168.31.190); root daemon via `/data/local/tmp/cmd.in`; **currently: new SD card pending** |
+| **Powkiddy RGB10 Max 2** | RK3326, 1 GB | **andr36oid port v0.1.0** (Android 11) on a 7.5 GiB NCard | Booted and verified 2026-11-11; `adb connect <ip>:5555` (port 5555 via diag.sh); root daemon `/data/local/tmp/cmd.in` |
 | **Anbernic RG353V** | RK3566, 2 GB | **GammaOS_Lite_v1.5** (Android 12, eMMC) + **ArkOS** (TF1) + ROMs (TF2) | Android: wireless adb `192.168.1.148:5555` (Magisk). ArkOS: `ssh ark@192.168.1.148`, password `ark`. Both currently offline |
-| **Anbernic RG405V** | Unisoc T618, 4 GB | Stock **Android 12 V1.23** (116.5 GB eMMC + 128 GB microSD ROMs) | **online**: wireless ADB `192.168.1.189:43815` (paired 2026-11-08; port changes after reboot). Recon complete (`rg405v-internals/02-recon-results.md`); target = GammaOS Next Lite (Android 14) + andr36oid layer |
+| **Anbernic RG405V** | Unisoc T618, **Mali-G52 MP2**, 4 GB | **GammaOS Next v1.1 Lite** (Android 14), bootloader unlocked, Magisk 29.0 (app 30.6), no GApps; 4" IPS **640x480 native** | **USB ADB** `79783730379533`; Wi-Fi verified. **PS2: MaliSX2 0.4.1 works on G52** via patched ARMSX2 Nightly + Vulkan (CvS2 verified). Backup + unbricker done (see `rg405v-internals/10-emulator-gpu-drivers.md`) |
 
 Host: `/home/souhail/Andr36oid` workspace. Devices are on `192.168.x` networks
 that change between sessions — re-scan if connect fails.
+
+---
+
+## Current state — 2026-11-11 (session recap)
+
+### RGB10 Max 2 — andr36oid port **published (v0.1.0) and verified on hardware**
+
+- Repo: **`picaso1-cloud/rgb10max2-andr36oid`** (public) ·
+  release **`v0.1.0`**: image (1.6 GB xz / 4.8 GB raw) + 5 Go flasher binaries.
+- **Verified**: boots, setup wizard, **Wi-Fi + BT from battery**, both sticks
+  click (**L3/R3**), **L3+R3 mouse chord** works.
+- **Two boot blockers found and fixed** (documented in the repo README):
+  1. The DTB must be compiled with **`dtc -@`**; without `__symbols__` the boot
+     applies overlays and fails with a **"system failure"** message. Correct DTB
+     sha256 `8fa4e522…` (byte-identical to the proven working card).
+  2. `boot.ini` needs `usbcore.autosuspend=-1` in `bootrootfs`,
+     `androidboot.sf_orientation=ORIENTATION_270` on the `android` variable, and
+     the pre-kernel PMIC OTG poke `i2c mw 0x20 0xb4 0x47 1` before **both**
+     `booti` branches.
+- The BOOT rebuild must copy the **whole** base BOOT tree (a whitelist dropped
+  `Image/`, battery bitmaps, etc.).
+- **Card** (correction): the port used the **7.5 GiB “NCard”** from the start;
+  the **128 GB “SD16G” was not inserted this session**. NCard: full read
+  52.9 MB/s, fsck clean, backup at
+  `rgb10max2-andr36oid/build/backups/NCard-2026-11-11.img` (sha `90bbd779…`).
+- Flasher: Go tool, write + **SHA-256 read-back**; tested on the NCard (OK).
+  Removing the card mid-write aborts the image (reflash needed).
+
+### RG405V — GammaOS Next v1.1 Lite, mods applied, healthy
+
+- Android 14 / LineageOS 21, bootloader unlocked, Magisk 26.1 (app 29.0), no GApps.
+- Health: no crashes/ANRs; `performance_mode=stock` (idle 614 MHz / GPU 384 MHz,
+  ~39 °C); the only oddity is a cosmetic D-state load average (~6).
+- Mods: **mouse mode** (L1+R1+Select; right stick pointer, left scroll,
+  A=left/B=right, configurable), USB mode switcher, **USB HID gamepad**
+  (`stop usb-hal-1-1` needed; self-restore watchdog), **andr36oid Panel** APK;
+  Magisk `service.d` autostart for mouse + adb-wifi.
+- **D-pad is native** in Android Settings (Tab bridge retired: it caused 2-row
+  jumps because the hat already moved one row).
+- Touchscreen: a latched Goodix needs a **cold power-off** (reboot is not
+  enough); screen-off grabs the touch node for gestures (looks dead to getevent).
+- SD: the 128 GB card was f3-validated earlier (0 errors, 5.7 GB ROM test set);
+  it is not in use in this session.
+- **Tailscale**: never in the image (only `/data`, untouched); repo history
+  scrubbed of tailnet IPs/hostnames. No auth state anywhere in the repo.
 
 ---
 
@@ -140,22 +311,108 @@ kit. Console currently has no working card.
 
 ---
 
-## Project 3 — RG353V: ArkOS side  ⏸ investigated
+## Project 3 — RG353V: ArkOS → dArkOS  ✅ running (migrated 2026-11-20)
 
-### Done
-- Survey (Ubuntu 19.10, kernel 4.19.172, ark/ark SSH, governors, storage).
-- **PS2-on-Linux investigation (complete record, `12-ps2-linux-investigation.md`)**:
-  ARMSX2 Linux-arm64 AppImage fully starts after bundling glibc 2.39,
-  libstdc++ 14, FreeType 2.13, libwayland 1.22 — but **ArkOS cannot display a
-  Qt6 window** (weston 5 lacks `xdg_wm_base`; xwayland/weston die on VT
-  signals; Xorg fbdev fails `mmap fbmem: Invalid argument`; sway can't get a
-  VT from SSH). ES restored (`systemctl start emulationstation`).
-- PS2 assets confirmed on the SD: `/roms2/ps2/*.iso` (GTA VCS, GTA SA, NFS UG,
-  Crash TTR, SNK NeoGeo Collection, Twisted Metal) + BIOS
-  `/roms2/ps2/bios/SCPH30004R.bin` (+ scph39001).
+### 2026-11-19 card diagnosis (ArkOS TF1 card failed to boot — "stuck on splash")
+
+Card inspected read-only on laptop (58.2 GiB, ArkOS rk3566 layout: p1/p2
+bootloaders, p3 BOOT 100 M vfat, p4 ext4 root 10.4 G, p5 EASYROMS exfat 47.8 G):
+
+- **Card is healthy**: ext4 fsck clean, boot-chain files valid, rootfs UUID
+  matches extlinux, kernel `Image` Feb 2025 (≈ the 02/09/2025 release, the
+  last ArkOS image ever published).
+- **31 boots logged**, 3 in the last week; the last full boot (2026-11-13
+  19:35) reached **network + audio + EmulationStation started**, and
+  `imagecache.db` was still being written at 23:30 — the device **worked for
+  ~4 h that evening**, then died/removed uncleanly (BOOT vfat dirty bit + a
+  `System Volume Information` dir = Windows also touched the card after).
+- **Root cause (hypothesis, high confidence): ES crash-loop from
+  `imagecache.db` corrupted by that unclean shutdown** — EmulationStation
+  starts (service OK) but dies reading the corrupt cache → screen frozen on
+  splash → "stuck on splash". No `es_log.txt` was written (crash too early).
+- **Fix applied:** ES config backed up to
+  `rg353v-backup/arkos-card/ark-emulationstation-config.tar.gz`;
+  `imagecache.db` quarantined as `imagecache.db.corrupt`; ES will rebuild it.
+- Backups taken: `boot-p3.img` (100 M), `easyroms-content.tar.gz` (671 M —
+  all EASYROMS content incl. bios 11 M + configs).
+- Only cosmetic service failures noted (503 vibration script, rc.local
+  odroidgo2-joypad echo — both present during working boots; not the cause).
+
+### ArkOS ecosystem status (researched 2026-11-19)
+
+- christianhaitian/ArkOS **archived 2025-12-30**; final image = **02/09/2025**
+  (MD5 `F8EDEC54…`), final OTA update = **v2.0 07/31/2025** (PPSSPP 1.19.3,
+  RA 1.20.0, PortMaster fix — fetchable, repo `main` frozen).
+- **dArkOS is the successor** (same author): github.com/christianhaitian/dArkOS.
+- OTA mechanism: `Update.sh` → `ArkOSUpdate.sh` from repo `main` (frozen final
+  state) → per-device payload. Reference copy saved:
+  `rg353v-backup/arkos-card/ArkOSUpdate-final.sh`.
 
 ### Next actions
-- Only via Project 4 (ROCKNIX). Keep ArkOS unchanged meanwhile.
+1. ~~Test card in RG353V~~ — **user reports still stuck on splash after the
+   imagecache fix** (2026-11-20). Root cause of the ES crash not identified;
+   moved to the OS-level upgrade instead.
+2. **ROCKNIX migration DONE on the ArkOS card (2026-11-20):**
+   - Data preserved: `easyroms-content.tar.gz` (bios 11 M + saves + configs)
+     and `ark-emulationstation-config.tar.gz` — the only data parts on the card.
+   - User declined further ArkOS backups; partial full-card image deleted.
+   - Flashed **ROCKNIX-RK3566 20261101 Generic** (SHA256-verified download,
+     `b573c965…` gz) to the card — write 34.2 MB/s fsync'd, readback verified
+     byte-for-byte. Resulting layout: 2 GiB `ROCKNIX` vfat + 32 MiB `STORAGE`
+     ext4 (auto-expands to the full 58 GiB on first boot).
+   - **FINAL STATE (2026-11-20):** card re-flashed clean + **STORAGE capped at
+     20 GiB** + third "unused" partition (36.2 GiB, no filesystem) walling off
+     the dead zone — ROCKNIX's auto-expander can no longer grow into it
+     (storage fs already fills its partition; the expander's only growth target
+     is the dummy partition = table-only no-op). fsck clean, mount-tested.
+     **Superseded same evening:** ROCKNIX still failed to boot on-device —
+     **dArkOS v11072026 installed instead, booting ✅** (see OUTCOME below).
+   - **Root cause chain (final):** card fails writes beyond ~24 GB →
+     ROCKNIX first-boot storage expansion hung the device (user saw frozen
+     splash, pulled power) → wedged card state made subsequent boots skip the
+     SD entirely (BootROM fallback to eMMC Android). Re-flash + 20 GiB cap +
+     dead-zone wall resolves all three.
+   - **TF2 (ROMs card) untouched** — ROCKNIX firmware-only on TF1 per plan;
+     after first boot: enable SSH/Samba → copy bios set (11 M, in
+     `easyroms-content.tar.gz`) into `STORAGE/bios` → map TF2 roms folders.
+   - **Boot failure root cause found (2026-11-20): interrupted first-boot
+     storage expansion.** The card diff vs pristine image proved the device
+     DID boot ROCKNIX (STORAGE ext4 metadata modified, boot files intact).
+     The first-boot resize started, the screen looked frozen, power was pulled
+     — leaving `STORAGE` at 32 MiB with the expansion never retried (flag
+     consumed) → every boot stuck at the same stage.
+   - **Fix applied: manual expansion** — `sfdisk -N2 ",+"` grew p2 to fill the
+     card (GPT backup relocated), `e2fsck -f -y` clean, `resize2fs` grew the
+     fs to 14,738,939 blocks (**56.2 GiB**), final fsck clean, mount-tested.
+     **→ User test 2026-11-20: STILL failed — device skipped the SD entirely
+     and booted eMMC Android.** Storage was never the (only) problem.
+   - Card health extra datapoint: sustained sequential reads collapse
+     44 → 9 MB/s on this old card (abandoned full-backup dd log).
+   - **OUTCOME (2026-11-20 evening): ROCKNIX abandoned — dArkOS flashed by
+     user, BOOTS ✅.** User downloaded **dArkOS v11072026** (latest release,
+     Debian 13 Trixie base, RG353V-specific image, published 2026-11-14),
+     flashed it onto the same TF1 card → device boots to the frontend.
+     Decompressed image (7.5 GB, MD5 `acb3f2b0…`) + .7z parts kept in
+     `rg353v-backup/images/`.
+   - **Boot-chain root cause (raw-byte comparison, laptop):** dArkOS vs
+     ROCKNIX idbloader + u-boot regions differ entirely. dArkOS @ 8 MiB:
+     `FIT Image with ATF/OP-TEE/U-Boot/MCU` (full trusted chain, RG353V-tuned
+     DDR init); ROCKNIX @ 8 MiB: `FIT image for U-Boot with bl31 (TF-A)`
+     (generic RK3566 chain). This unit accepts dArkOS's chain and rejects
+     ROCKNIX's — **the ROCKNIX flash procedure itself was verified correct
+     (byte-for-byte vs official image); the incompatibility is in ROCKNIX's
+     boot-chain build for this unit.** If ROCKNIX is ever wanted here: splice
+     dArkOS's loader region (sectors 64→32768) keeping ROCKNIX partitions
+     — experimental.
+   - Worth reporting upstream: ROCKNIX 20261101 Generic fails to boot on
+     RG353V (data point for their RK3566 build).
+   - **RG353V Linux baseline = dArkOS v11072026** (successor of ArkOS, active
+     releases, Debian Trixie). Mirror saves to TF2/hub.
+   - Full-card dd abandoned mid-way (card read speed collapses 44→9 MB/s on
+     sustained reads — this old card is on its way out; do not reuse for new
+     libraries).
+3. Mid-term: evaluate **dArkOS** for RG353V vs staying on ROCKNIX (active
+   monthly releases; 20261101 = latest). Keep saves mirrored to TF2/hub.
 
 ---
 
@@ -189,71 +446,86 @@ The RG353V has **two OS modes and two SD slots**:
   OS card.
 - **TF2** = ROMs/media card only (never boots).
 
-Therefore a ROCKNIX TF1 card is expected to boot directly **with Android
-untouched on the eMMC**; removing the TF1 card boots Android again. The ROCKNIX
-wiki's "wipe Android" note is an **unverified caveat** for some units, not this
-device's normal behavior, and is not planned. No eMMC wipe / chainload is
-needed.
+**2026-11-20 — this model is now qualified by hardware evidence.** Four
+ROCKNIX-based cards (original image, and three hybrids carrying dArkOS's exact
+u-boot FIT + dArkOS-identical GPT) all landed on Android, while dArkOS and
+ArkOS boot from the same slot. The eMMC boot chain therefore gates what a TF1
+card may load; ROCKNIX's documented "wipe the Android partition on P/M/V" is
+real for this unit, not a caveat. **The ROCKNIX track is closed** —
+see `15-darkos-migration.md` (final section) and the replacement plan
+`17-archr-bringup-plan.md`.
 
 ### Stages
-0. **Validate** (when resumed): flash `dist/ROCKNIX-RK3566-Generic.img` to a
-   spare A2 card → put it in **TF1** → boot → verify panel/touch/audio/Wi-Fi/GL/
-   ARMSX2. Keep ROMs on the TF2 card.
-1. Capture boot chain — **done offline** (no further hardware capture needed for
-   the normal TF1 path).
-2. Arch rootfs hybrid — optional/unnecessary.
-3. Full Arch-R RK3566 port — optional, only for pacman/rolling.
+0. ~~Validate by flashing ROCKNIX~~ — **closed 2026-11-20**: ROCKNIX does not
+   boot on this unit (4/4 variants → Android).
+1. Capture boot chain — **done offline**; dArkOS's chain is now the reference
+   implementation.
+2. **Staged bring-up** — the replacement plan: keep the proven dArkOS chain and
+   replace one layer per boot (initramfs → rootfs → kernel → loader), with a
+   visible output on the panel at every step.
+3. Distribution polish — ES frontend, controls, audio, Wi-Fi, TF2 ROMs, OTA.
 
-**Decision (2026-11-08): documentation-only for now — nothing to flash, no
-device changes.** This remains as a reference for a future experiment.
+**Decision (2026-11-20):** stop distro-flashing experiments. Proceed with
+`17-archr-bringup-plan.md`, starting at **S1** (custom initramfs banner on the
+working dArkOS card — one file, no reflash).
 
-Full plan: `13-archr-rk3566-plan.md` · analysis: `14-rocknix-image-analysis.md`.
+Full plan: `17-archr-bringup-plan.md` (current) · `13-archr-rk3566-plan.md`
+(background) · analysis: `14-rocknix-image-analysis.md`.
 
 ---
 
-## Project 5 — RG405V: newest Android + andr36oid layer  🔎 recon complete
+## Project 5 — RG405V: newest Android + andr36oid layer  ✅ GammaOS Next v1.1 Lite running
 
-**Device (verified live 2026-11-08):** Unisoc T618, 4 GB, **116.5 GB eMMC**,
-4″ **480×640 portrait** panel (UI 640×480 landscape), **128 GB microSD ROM
-library** (103 GB used). Stock **Android 12 V1.23**, security patch 2022-07-05,
-38 Google packages, bootloader **locked**, no usable root, SELinux **Permissive**.
-Full profile: `rg405v-internals/02-recon-results.md`.
+**Device (verified live 2026-11-08 → 2026-11-11):** Unisoc T618, 4 GB,
+**116.5 GB eMMC**, 4″ **480×640 portrait** panel (UI 640×480 landscape),
+**128 GB microSD ROM library** (103 GB used). Now running **GammaOS Next v1.1
+Lite** = Android **14 / LineageOS 21** (`lineage_arm64_bvN-userdebug
+AP2A.240905.003`), model `TrebleDroid vanilla`, **no GApps**, **Magisk 29.0**,
+SELinux Permissive, bootloader **unlocked** (`flash.locked=0`,
+`verifiedbootstate=orange`). Stock was Android 12 V1.23 (38 Google packages).
+Full stock profile: `rg405v-internals/02-recon-results.md`.
 
-- **Access:** wireless ADB `192.168.1.189:43815` (paired; port changes after
-  reboot).
-- **Target OS:** **GammaOS Next v1.1 (T618) — RG405V Lite, Android 14**
-  (fresh install, wipes internal storage) + andr36oid layer.
-- **Linux:** not planned (no mainline T618 support) — investigation only.
-- **Recon highlights:** 77 A/B partitions, dynamic `super` 5.6 GB, userdata
-  112.9 GB; schedutil 614 MHz–2.002 GHz, Mali-G52 384–850 MHz, DDR 1866 MHz;
-  `retrogame_joypad` + `touch_joypad` + Goodix touch; SC2355 SDIO Wi-Fi (5 GHz);
-  zram 2.14 GB; emulators preinstalled (AetherSX2, Dolphin, PPSSPP,
-  DuckStation, RetroArch, Citra, …).
-- **Plan:** `rg405v-internals/03-gammaos-next-plan.md` — backup `/sdcard`
-  (~4.8 GB), enable OEM unlock, unlock (wipes), fastbootd flash Lite, erase
-  userdata, validate, port L3 layer.
-- **Rollback:** GammaOS RG405V unbricker (Google Drive; Windows
-  `UpgradeDownload.exe`) — **must be verified before flashing**; no root =
-  no full eMMC dump.
-- **Installed (2026-11-08, no root):** **Daijishō 1.5.0** (32 platforms
-  imported; ROM paths pending), **Droidify 0.7.8** (F-Droid client),
-  **Shizuku-Next 14.0.33** (running, shell UID, transport adb).
-- **Performance tuning (2026-11-08, no root):** Daijishō default home, 0.5×
-  animations, Doze exemptions for 17 apps, **AOT compile** of 17 apps (all
-  Success), safe 6-package Google debloat. Reversible commands in
-  `rg405v-internals/06-optimization.md`.
-- **Prepared updates:** Cromite, Fennec, PPSSPP 1.20.4, RetroArch 1.22.2,
-  Flycast 2.7, Azahar 2126.2; details in `rg405v-internals/04-apps-and-launcher.md`.
-- **Kernel/DT deep dive (2026-11-08):** kernel **5.4.161** BSP, `/proc/config.gz`
-  readable, full running DTS recovered via sysfs, 152 modules / 282 loaded.
-  Hardware: SC2730 PMIC, **AW32257 charger**, SC2730 FGU/Type-C/vibrator,
-  generic MIPI **480×640** panel, **Goodix GT9xx** touch, `retrogame_joypad`
-  (singleadc), **SC2355 SDIO** WiFi/BT/GNSS, **Mali-G52 Gondul** 384–850 MHz.
-  Artifacts: `rg405v-internals/recon/20261108/`, doc `05-kernel-drivers-deep-dive.md`.
-- **Status:** **recon complete; decision 2026-11-08: STAY STOCK for now** —
-  no unlock, no flash, no device changes. GammaOS Next Lite plan remains ready;
-  the user has a Windows PC/VM for the unbricker when the flash is eventually
-  considered.
+- **Access:** USB ADB serial `79783730379533`; fastboot/fastbootd work.
+  Wireless ADB port changes after reboot.
+- **Bootloader unlocked 2026-11-11** with Linux `unisoc-unlock` (token + RSA
+  signature → `flashing unlock_bootloader`). Traps: 60 s confirmation window
+  (timeout still applies the unlock; retry says `can not been unlocked
+  repeatly`), OEM-unlock toggle not required, post-wipe USB debugging off /
+  MTP `1782:4001`. Runbook:
+  `rg405v-internals/07-bootloader-unlock-lock-unbrick.md`.
+- **Flash (2026-11-11, done):** archive 2,425,892,864 B, `7z t` → OK (86 files);
+  `adb reboot fastboot` → fastbootd (`is-userspace: yes`); `FlashPartitions.sh`
+  exit 0, **0 failures** (both slots + logical `system`/`vendor`; system sparse
+  transfer 175 s, ~6 min total); `EraseUserData.sh` 59.9 s. First boot: ADB in
+  40 s, `boot_completed` ~2 min. Details: `03-gammaos-next-plan.md` §6.
+- **Post-flash validated:** `/data` 110 GB (1.1 GB used), `wm size` 640×480,
+  no `com.google.android.gms`/Play Store, Magisk 29.0 present, GammaOS apps
+  (`gammapad` running, shader control, analog calibrator, joystick LED).
+- **Next steps:** device setup wizard → Magisk finish-install (adb shell still
+  uid 2000, no `su`) → new microSD + ROM library → reinstall Daijishō/emulators
+  → port andr36oid L3 layer.
+- **Linux (new, 2026-11-20):** GarlicOS 2.0's bootloader proves the practical
+  route — patch the stock **`vendor_boot` ramdisk + `vbmeta`** (avbtool test
+  key, Unisoc `DHTB` wrapper), install via APK, then boot an **f2fs rootfs image
+  from exFAT SD** with the *vendor* kernel and `chroot`. No bootloader porting,
+  Android untouched, reversible. That is the boot half of our Arch port on this
+  device (GPU via vendor GL / MaliSX2, **no panfrost**). Mechanism + plan:
+  `rg405v-internals/19-garlicos-bootloader-analysis.md`.
+- **Rollback:** GammaOS RG405V unbricker
+  (`RG405V_UNBRICKER_SPD_Upgrade_Tool_R26.21.2801.7z`, 2,549,946,021 bytes,
+  Windows `UpgradeDownload.exe`) — **downloaded/verified 2026-11-12**
+  (SHA-256 `9212eec4…`, `7z t` OK); the SPD rollback itself is not yet
+  exercised.
+- **Historical (stock era, wiped):** Daijishō 1.5.0 + 32 platforms, Droidify
+  0.7.8, Shizuku-Next 14.0.33, and the 2026-11-08 performance tuning
+  (`rg405v-internals/06-optimization.md`) — all lost in the wipe; redo on
+  GammaOS Next.
+- **Kernel/DT deep dive (stock era):** kernel **5.4.161** BSP, full running DTS
+  via sysfs, 152 modules / 282 loaded. Hardware: SC2730 PMIC, **AW32257
+  charger**, SC2730 FGU/Type-C/vibrator, generic MIPI **480×640** panel,
+  **Goodix GT9xx** touch, `retrogame_joypad` (singleadc), **SC2355 SDIO**
+  WiFi/BT/GNSS, **Mali-G52 Gondul** 384–850 MHz. Artifacts:
+  `rg405v-internals/recon/20261108/`, doc `05-kernel-drivers-deep-dive.md`.
 
 ---
 
