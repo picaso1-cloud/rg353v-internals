@@ -64,3 +64,44 @@ free, so a full image is feasible, and the partial 16 MB restore is trivial.
 Mainline + panfrost on this unit is **not** a kernel problem and not a card
 problem. It is the eMMC legacy bootloader, exactly as documented. The current
 ArchR-on-5.10 system is the maximum achievable without touching the eMMC.
+
+---
+
+## 2026-11-21 — the loader's own memory map (extracted from dArkOS `uboot.img`)
+
+```
+kernel_addr_r           = 0x00a80000   (10.5 MiB)
+ramdisk_addr_r          = 0x0a200000   (162 MiB)
+fdt_addr_r              = 0x0a100000   (161 MiB)
+bootcmd = boot_fit; boot_android ${devtype} ${devnum}; setenv distro_bootpart 3 && run distro_bootcmd
+boot_targets = mmc1 mmc0 usb0 pxe dhcp
+```
+
+Consequences:
+
+- **No memory-size problem** booting a mainline kernel: 7.2.11 is 29 MiB, loaded at
+  10.5 MiB → ends ≈ 40 MiB, far below the initrd at 162 MiB. dArkOS's own 32 MiB
+  kernel uses the same slot.
+- The SD path is reached only after `boot_fit` and `boot_android` fail; the
+  extlinux entry is loaded with `sysboot` at `distro_bootpart=3`.
+- A clean-card test (FAT reformatted, files verified, 43 MB free) with the
+  ROCKNIX 7.2.11 `Image` still produced **no tracer, no dmesg, no userspace log**
+  → the kernel starts and dies before `init`, invisibly (console is `ttyUSB0`).
+
+### Most likely mechanism (hypothesis, needs UART to confirm)
+
+The kernel receives **dArkOS's ATF (`bl31`)**, which is inside dArkOS's u-boot FIT
+on the SD. ROCKNIX's kernel expects the ATF shipped with ROCKNIX's own u-boot;
+a PSCI/SMCCC or feature mismatch would panic before any driver initialises —
+exactly the observed "nothing at all".
+
+Confirming this needs the **debug UART** (`earlycon=uart8250,mmio32,0xfe660000`
+is already in the bootargs): three pads + a USB-TTL, and we would see the panic
+in one boot instead of guessing.
+
+### What an Arch-R kernel would change
+
+Nothing fundamental: Arch-R's kernel is the same mainline family (6.12/6.15) and
+its config targets **RK3326**, not RK3566. It is a different sample of the same
+class of kernel, so it would face the same ATF/PSCI question — while bringing no
+RK3566 panel/Wi-Fi configuration.
