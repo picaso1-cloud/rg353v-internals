@@ -174,3 +174,30 @@ Changes (rootfs overlay, `tools/s2/rootfs-overlay/`):
 
 Note: `/etc/modules-load.d` was another Arch-R overlay symlink into `/storage`;
 replaced with a real directory.
+
+---
+
+## 2026-11-21 — log-harvest postmortem (two instrumentation bugs)
+
+Last boot's `BOOT-TRACE.txt` (20:33) shows the chain is still healthy:
+
+```
+root: /dev/mmcblk1p4 ext4 -> OK
+os  : PRETTY_NAME="ArchR 20261113"
+=== exec switch_root ===
+```
+
+But the *systemd* side left nothing, for two self-inflicted reasons:
+
+1. **Arch-R has no `/root`** (root's home is `/storage`) — the watcher's
+   `/root/s2-BOOTLOG.txt` redirect failed every cycle. Now writes
+   `/s2-BOOTLOG.txt` (+ `/boot/…`, `/storage/…`).
+2. The wrapper-installed marker persisted, so the console→tty1 bind was skipped
+   on later boots → systemd logs went back to invisible `ttyUSB0`. Marker now
+   removed so the wrapper reinstalls.
+
+Also observed: `/storage/.pacman/db/local/…` modified at 20:27 — a boot was
+interrupted mid-pacman, so a stale state/lock is possible; checked, none found.
+
+**Rule:** any log path baked into Arch-R must use `/storage` or `/` — never
+`/root`.
