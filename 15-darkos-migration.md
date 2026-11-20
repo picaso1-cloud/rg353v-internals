@@ -170,3 +170,34 @@ Four variables were changed at once across the hybrid series (loader bytes,
 partition numbering, partition type GUIDs/names, kernel+dtb+cmdline). Every
 failure was therefore un-attributable. A port must instead hold the working
 chain fixed and move one layer at a time, with a visible output at each stage.
+
+---
+
+## 2026-11-21 — first boot on an 8 GB card: the expansion is impossible by design
+
+dArkOS `expandtoexfat.sh` reserves **11 GB for the rootfs** and gives the rest to
+`/roms`:
+
+```
+newExtSizePct   = 11000000000 / disk_size
+ExfatPctToRemain = 100 * (1 - newExtSizePct)
+growpart --free-percent=$ExfatPctToRemain <disk> 4
+```
+
+On an 8 GB card (8,053,063,680 B): `1 - 11/8.05 = -0.366` → `--free-percent=-36`
+→ growpart fails; the script has already run `fdisk d 5` (deleting p5), then
+`fdisk n 5` cannot re-add it (no free space) → `mkfs.exfat` fails → the
+"expansion failed" dialog → `reboot`.
+
+**Consequences (verified on hardware 2026-11-21):**
+
+- The first boot reaches dArkOS userspace, then fails at expansion and reboots.
+- On that card p5 (`/roms`) is now **gone** and `firstboot.service` is disabled
+  by the failure path, so a second boot cannot retry.
+- The post-failure reboot landed on **Android**. Two candidate causes, not yet
+  separated: (a) warm reboot loses the SD at the eMMC-SPL stage, or (b) the
+  fdisk rewrite of the GPT. Discriminating test: **full power-off, wait 10 s,
+  power-on** — if dArkOS returns, it was (a).
+
+**Rule:** dArkOS needs **≥ 11 GB, practically ≥ 16 GB** (the certified 238 GiB
+card is the right one). Do not judge dArkOS, or S1, on an 8 GB card.

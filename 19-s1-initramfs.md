@@ -66,3 +66,22 @@ Nothing else changes: no kernel, no DTB, no `extlinux.conf`, no rootfs.
 
 Low and bounded: two entries, guarded call, stock handover untouched, backup on
 the card and in this repo. Worst case the card needs `revert-s1.sh`.
+
+---
+
+## 2026-11-21 — first hardware result: S1 works
+
+Boot on the 8 GB `NCard` with `dArkOS_S1.img`:
+
+1. **The banner appeared** (a `====…` line with a trailing dmesg fragment
+   `…ontroller` remained visible at the bottom of the screen after dArkOS's
+   splash took over). ⇒ the patched initramfs ran; we own that stage.
+2. dArkOS userspace started (first-boot wizard, setup log) ⇒ the stock
+   `run-init` handover still worked with our insertion.
+3. Then the **first-boot expansion failed** and the system rebooted — see
+   `15-darkos-migration.md` ("8 GB card: the expansion is mathematically
+   impossible"). This is a card-size problem, not an S1 problem.
+4. After that reboot the device landed on Android.
+
+`S1-LOG.txt` was not retrieved yet (card stayed in the device). It is written on
+every boot, so any later insertion of that card still has it.
