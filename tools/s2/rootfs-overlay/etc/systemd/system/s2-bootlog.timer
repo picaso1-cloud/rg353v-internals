@@ -1,0 +1,8 @@
+[Unit]
+Description=S2 dump boot state after 45s
+[Timer]
+OnBootSec=45s
+AccuracySec=1s
+Unit=s2-bootlog.service
+[Install]
+WantedBy=timers.target

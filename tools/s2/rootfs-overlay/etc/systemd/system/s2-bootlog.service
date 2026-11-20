@@ -1,0 +1,6 @@
+[Unit]
+Description=S2 dump boot state
+After=local-fs.target
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/s2-bootlog.sh

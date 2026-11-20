@@ -123,3 +123,33 @@ device just keeps showing the splash.
    instead of rewriting 7.3 GB.
 
 Installed on the card: `/uInitrd` sha256 `2f5b5d1e…cfb9`.
+
+---
+
+## 2026-11-21 — the handover works; the OS is booting
+
+Our tracer init proved, on hardware:
+
+```
+root: /dev/mmcblk1p4 ext4 -> OK
+os  : PRETTY_NAME="ArchR 20261113"
+installed visible init wrapper
+=== exec switch_root ===      (never returned = success)
+```
+
+Offline checks of p4 confirm systemd ran: `/etc/machine-id` created, Arch-R's
+storage setup written (`/storage/.configured`, `.pacman/.initialized`). It just
+never reaches `multi-user.target`, and the panel shows nothing because the
+loader forces `console=ttyUSB0`.
+
+Instrumentation added (rootfs-only, no reimage — overlay in
+`tools/s2/rootfs-overlay/`):
+
+| Item | Effect |
+|---|---|
+| `journald.conf.d/90-console.conf` | every journal line mirrored to `/dev/tty1` |
+| `s2-bootlog.timer` (45 s) + service | dumps jobs, failed units, journal tail, mounts to `/root/s2-BOOTLOG.txt`, `/boot/S2-BOOTLOG.txt`, and the panel |
+| `fstab` | p5 mount removed (it was failing); `/boot` stays nofail |
+
+Note: the device has **no keyboard/mouse**, so a getty prompt cannot be used for
+input — visible journal output is the practical interface until sway/ES work.
