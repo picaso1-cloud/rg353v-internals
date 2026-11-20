@@ -51,3 +51,38 @@ sudo tools/s3/install-kernel.sh --device /dev/mmcblk0
   (tracer) and `/s2-BOOTLOG.txt` (if systemd got that far).
 - **Panic at mount** → ext4 is built-in, so this would point at the DTB or the
   tracer; revert is one flag.
+
+---
+
+## 2026-11-21 — 7.2.11 boots; panel white; logging upgraded
+
+Timeline evidence from the card:
+
+- `BOOT-TRACE.txt` at 20:42 → tracer ran **with the new kernel**, mounted p4,
+  `switch_root` reached.
+- `/s2-BOOTLOG.txt` at 20:46 (uptime 258 s) → `wlan0 … 192.168.0.198`, i.e. the
+  system reached multi-user **and** network on 7.2.11.
+- Panel: white with a black left edge → the DTB panel node was still wrong after
+  the `elidA,kd35t133` switch (see below).
+
+### Logging, upgraded (what "log the boot" can actually mean here)
+
+| Stage | Captured by | Survives cold boot? |
+|---|---|---|
+| BootROM / SPL / u-boot | **only UART** (`earlycon` already passes `uart8250,mmio32,0xfe660000`) | needs a USB-TTL |
+| kernel early (incl. panel/DRM probes) | `/s2-EARLY.txt` + `/boot/S2-EARLY.txt` — **full dmesg written at first userspace start** | yes |
+| initramfs stage | `/BOOT-TRACE.txt` (tracer) | yes |
+| systemd onwards | `/s2-BOOTLOG.txt` every 10 s, journal filtered of `archr-levels` spam | yes |
+
+The previous log was useless for the panel because the journal window was 200
+lines and `archr-levels` writes a `chmod` error every 1.6 s. The new early
+capture dumps the **whole dmesg** once, plus DRM/backlight/panel-grep output.
+
+### Panel: next test
+
+ROCKNIX's DTB says `anbernic,rg353p-panel","newvision,nv3051d`; our unit is the
+v2 panel that dArkOS drives as `elida,kd35t133`. ROCKNIX normally patches this
+in **its own u-boot** from panel-ID detection — which we bypass by using
+dArkOS's loader. The one-line compatible swap did not produce a picture, so the
+next step is to check the early dmesg for the actual probe result (bound vs
+failed to find panel) before patching timings or adding an overlay.
