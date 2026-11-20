@@ -78,3 +78,22 @@ chain** (dArkOS/ArkOS loader = safe) + **kernel choice**:
 | dArkOS + vendor blob | **Vulkan 1.3 (limited)** | ✅ shipped, test with vulkaninfo |
 | ROCKNIX + panfrost/panvk | Vulkan (open, experimental) | ❌ doesn't boot; splice hybrids built |
 | Arch port (future) | depends on kernel choice | scaffold only (`13-archr-rk3566-plan.md`) |
+
+## hybridD — the Rockchip-GUID discovery (2026-11-20, flashed, testing)
+
+Comparing the GPT of the **working dArkOS card** vs every failing ROCKNIX-based
+card exposed the missing piece: Rockchip vendor partition types/names.
+
+| | dArkOS (boots) | all ROCKNIX variants (failed) |
+|---|---|---|
+| p1 | type `A60B0000-0000-4C7E-8000-015E00004DB7` name "uboot" | generic Linux type |
+| p2 | type `D46E0000-0000-457F-8000-220D000030DB` name "resource" | generic Linux type |
+| p3 | name/fs-label "dArkOS_Fat" | "system"/"ROCKNIX" |
+
+hybridD = dArkOS loader + **dArkOS-identical GPT** (same types, names, disk
+GUID `31AAB98C…`) + ROCKNIX kernel/dtb under both naming schemes + explicit
+`FDT` + 20 GiB STORAGE + fs label `dArkOS_Fat` (`boot=LABEL=dArkOS_Fat`) —
+flashed and byte-verified (cmp, 0 diffs). Testing on device.
+
+**Process lesson:** stop laptop-side re-verification loops once `cmp` passes —
+hand the card to the device; a device boot is the only meaningful test.
