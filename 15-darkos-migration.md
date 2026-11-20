@@ -77,3 +77,54 @@ partitions — two splice hybrids already built (see `rg353v-backup/images/`).
 - Enable SSH/Samba on dArkOS → push bios to `/roms/bios`, wire TF2 roms.
 - Follow-up: report ROCKNIX 20261101 RG353V boot failure upstream
   (github.com/ROCKNIX/distribution) with this boot-chain comparison.
+
+---
+
+## 2026-11-20 — RESEARCH RESOLVES THE MYSTERY: boot flow + the wipe-Android requirement
+
+**Sources:** RK3566 Boot Sequence docs (cnblogs/zxdplay), Pine64 forum
+(Rockchip BootROM TRM behavior), **ROCKNIX wiki — RG353 P/M/V/VS device page**.
+
+### The actual RG353V boot flow (RK3566)
+
+1. BootROM → loads **uboot SPL from eMMC FIRST** (fixed order: eMMC, then SD).
+   With GammaOS on eMMC, this is **GammaOS's SPL**.
+2. The SPL searches for **u-boot: SD first, then eMMC** — it loads a u-boot
+   FIT from the SD card **only if the FIT format is one it accepts**.
+3. That u-boot searches **extlinux.conf + kernel: SD first**, then eMMC, USB.
+
+### Why ArkOS/dArkOS boot but ROCKNIX doesn't
+
+- ArkOS & dArkOS FITs (`ArkOS-style`, `ATF/OP-TEE/U-Boot/MCU`) are
+  **accepted by the GammaOS SPL** (shared BSP lineage) → SD u-boot runs →
+  their extlinux on SD → Linux boots.
+- ROCKNIX's FIT (`bl31 TF-A` structure) is **not loadable by the GammaOS
+  SPL** → no usable SD u-boot → SPL continues the eMMC chain → **Android**.
+  Observed on every ROCKNIX attempt (original, hybridA, hybridB).
+
+### The documented requirement (ROCKNIX wiki, RG353 P/M/V page)
+
+> **"P/M/V Users: You will need to wipe the Android partition to boot into
+> ROCKNIX."** (via ADB; warning: removes Android from eMMC completely)
+
+ROCKNIX on an RG353 **P/M/V** (2 GB, eMMC models) is **only supported with
+Android wiped from eMMC**. Also documented: "eMMC models with legacy
+bootloader is not supported"; v1 (0x3052) and v2 (0x3821) panels both
+supported once booting.
+
+### Undocumented-but-consistent detail
+
+The RG353V BootROM/eMMC-SPL chain has **no user-facing boot-order setting**
+(confirmed by community docs for this device family: a card that "lands on
+the vendor interface is either not in the boot slot or is booting with the
+wrong device tree"). Changing the primary boot medium = installing the OS to
+eMMC (unofficial, brick-risk, unnecessary for card-based setups).
+
+### Decision matrix (RG353V Linux)
+
+| Option | Android on eMMC | Modern kernel/drivers | Effort |
+|---|---|---|---|
+| **dArkOS v11072026 (current)** | **kept (dual-boot via card)** | Debian Trixie, BSP 5.10 kernel, **Vulkan 1.3 blob** | done ✅ |
+| ROCKNIX 20261101 | **must wipe Android (ADB)** | mainline 7.2.11 + panfrost/panvk | needs eMMC wipe + backup first |
+| ArkOS 07/31/2025 update | kept | no development anymore | n/a |
+| Arch port | depends on design | own kernel choice | scaffold |
