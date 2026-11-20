@@ -232,3 +232,26 @@ rebuild them:
 
 Superseded material is indexed (not deleted) in
 [`docs/ARCHIVE.md`](docs/ARCHIVE.md).
+
+---
+
+## Prior art in our own workspace (found 2026-11-20)
+
+Arch-R was **already cloned and attempted** on the RGB10 Max 2 — the workspace
+was sitting outside the project root (`~/rgb10max2-archr`, now
+`~/Andr36oid/rgb10max2-archr/`, with a compatibility symlink). It is recorded in
+`rgb10max2-internals/12-archr-port-2026-11.md`. What it changes for us:
+
+| Lesson | Consequence for the RG353V port |
+|---|---|
+| `make docker-RK3326` **fails at `cmake:host`** (four attempts) | Do **not** start with a full image build. Assume the build chain needs work first; budget for it only at M4 |
+| Device work was delivered by **patching a released image** (`make-rgb10max2-image.sh`, `make-rgb10max2-overlay-image.sh`) | Adopt the same for M3: patch the official Arch-R image with our kernel/DTB/overlay/quirks instead of building |
+| Device hacks live in `packages/hardware/quirks/devices/<Device>/NNN-*` | RG353V fixes go there (panel, joypad, rails), not into a hand-edited rootfs |
+| Board detection = **ADC range in `boot.ini`** (`clone_boot.ini` 60–110) | Same scheme on RK3566: ROCKNIX's SARADC table already has RG353V = **695** |
+| "Driver present" ≠ "hardware powered" (RK817 OTG latch for Wi-Fi) | Check regulators/rails first when something is silent on RK3566 |
+| Separate `…-DEBUGPROBE.img` variant with its own key | Cheap pattern for instrumented bring-up images — reuse at S3 |
+
+**Workspace rule (2026-11-20):** all device data now lives under
+`~/Andr36oid/` (`rg353v-backup`, `rg405v-backup`, `rg405v-gammaos`,
+`rg405v-apks`, `rgb10max2-archr`, `toolchains`); the old `~/<name>` paths are
+symlinks, so existing documents and scripts keep working.
