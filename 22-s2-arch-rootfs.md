@@ -153,3 +153,24 @@ Instrumentation added (rootfs-only, no reimage — overlay in
 
 Note: the device has **no keyboard/mouse**, so a getty prompt cannot be used for
 input — visible journal output is the practical interface until sway/ES work.
+
+---
+
+## 2026-11-21 — Arch boots into a sway restart loop; Wi-Fi + SSH wired in
+
+Journald-to-panel made the failure visible: systemd reaches the UI services and
+sway exits/restarts (`archr-launcher-session.service` has `Restart=always`), so
+the device looks "stuck on splash" while looping.
+
+Changes (rootfs overlay, `tools/s2/rootfs-overlay/`):
+
+| Item | Detail |
+|---|---|
+| Mask loop | `archr-autostart`, `archr-launcher-session`, `sway` → `/dev/null` |
+| Wi-Fi | `wpa-wlan0.service` runs Debian's `wpa_supplicant` (Arch-R has connman but **no** wpa_supplicant) with `libnl`/`pcsclite` copied beside it; SSID `CPE-391`, WPA-PSK |
+| DHCP | `dhcp-wlan0.service` → busybox `udhcpc` + our bound/renew script |
+| Driver | `8821cs` (RTL8821CS, vendor module from the dArkOS set) via `modules-load.d` |
+| SSH | `sshd-s2.service` (`ssh-keygen -A` then `sshd -D`), root/`ark` |
+
+Note: `/etc/modules-load.d` was another Arch-R overlay symlink into `/storage`;
+replaced with a real directory.
