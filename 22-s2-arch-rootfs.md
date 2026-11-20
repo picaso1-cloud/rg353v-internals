@@ -233,3 +233,28 @@ Fixes applied (rootfs overlay):
 
 Also learned: `/storage` is exfat (chmod → `ENOSYS`), so Arch-R config writes must
 not depend on unix permissions.
+
+---
+
+## 2026-11-21 — S2 ACCEPTED on hardware (SSH over Wi-Fi working)
+
+Latest `/s2-BOOTLOG.txt` (snapshot at 30 s uptime):
+
+```
+13.28s  Reached target multi-user.target / graphical.target / archr.target
+23.44s  wlan0: Trying to associate with ac:ef:92:b2:c3:91 (SSID='CPE-C391')
+24.04s  wlan0: CTRL-EVENT-CONNECTED
+24.72s  udhcpc: lease of 192.168.0.198 obtained from 192.168.0.1
+12.43s  sshd-s2.service: Server listening on 0.0.0.0 port 22
+```
+
+`ip addr`: `wlan0 … inet 192.168.0.198/24` · rfkill soft: `0 0` · module `8821cs`.
+
+That is the S2 milestone in full: **Arch Linux ARM (ArchR 20261113) userland on
+dArkOS's 5.10.226 kernel, with the dArkOS loader untouched, reachable over SSH.**
+
+Remaining known issue: the panel keeps showing the u-boot splash because nothing
+redraws the framebuffer console after `switch_root`; with SSH available this is
+now debuggable interactively (VT/fbcon attach, DRM handover), not blind.
+
+Next: S3 (own kernel → panfrost/panvk) with SSH as the working interface.
