@@ -56,6 +56,7 @@ the OS build at any time.
 | [20-emmc-chainload-bridge.md](20-emmc-chainload-bridge.md) | **GarlicOS-style eMMC chain-load** on RK3566: what it buys (independent boot path), what it does not (no ROCKNIX gate bypass), decisive unknowns (fastboot boot, kexec), E0–E4 ladder |
 | [21-boot-chain-verified.md](21-boot-chain-verified.md) | **Boot chain verified on hardware** (S1 log + SSH): extlinux read but `root=` forced, dArkOS initramfs hardcodes `/dev/mmcblk1p4`, no kexec, mali kbase built-in |
 | [22-s2-arch-rootfs.md](22-s2-arch-rootfs.md) | **S2 accepted**: Arch-R rootfs + dArkOS 5.10.226 on p4, boots to multi-user in 13 s, Wi-Fi `CPE-C391` + DHCP `.198`, SSH working |
+| [23-s3-mainline-kernel.md](23-s3-mainline-kernel.md) | **S3**: swap to ROCKNIX mainline 7.2.11 (panfrost + rtw88_8821cs), staged payload + `tools/s3/install-kernel.sh` |
 
 ## Status
 
