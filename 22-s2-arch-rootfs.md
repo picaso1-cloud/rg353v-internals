@@ -90,3 +90,36 @@ p1/p2 (loader) and p3 (boot) unchanged. Device boot pending.
 p4 starts at exactly **116 MiB**, so `bs=1M` is aligned — both scripts now use
 that (≈10× faster). The last 52 KB of p4 were left untouched, which is beyond
 the filesystem end (fs = 7,784,588,288 B) and harmless.
+
+---
+
+## 2026-11-21 — first S2 boot: stuck at splash, cause found in one diag pass
+
+`S2-DIAG.txt` (saved to the boot FAT by the diagnostic initramfs) showed the
+rootfs itself is perfect:
+
+```
+MOUNT OK (ext4) · ArchR 20261113 · systemd 255 (255.8)
+SHELL_OK · uid=0(root) · root:$6$…
+dev/console : No such file or directory      <-- the bug
+```
+
+dArkOS's initramfs ends with:
+
+```sh
+exec run-init … "${rootmnt}" "${init}" <"${rootmnt}/dev/console" >"${rootmnt}/dev/console"
+```
+
+Arch-R ships an **empty `/dev`**, so the redirection fails, `run-init` never
+executes, and the resulting panic goes to `console=ttyUSB0` (invisible) — the
+device just keeps showing the splash.
+
+**Fix (two places):**
+
+1. Rootfs image now carries static `/dev/console` (5:1) and `/dev/null` (1:3)
+   — `archr-rootfs.img` sha256 `7d6e3a9d…`.
+2. `tools/s2/uInitrd.s2fix` adds a shim before `run-init` that creates the node
+   if missing (generic: works for any rootfs with an empty `/dev`). 12 MB write
+   instead of rewriting 7.3 GB.
+
+Installed on the card: `/uInitrd` sha256 `2f5b5d1e…cfb9`.
