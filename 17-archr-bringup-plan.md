@@ -155,3 +155,19 @@ archr/
 
 **S1**: build the tiny initramfs, drop it on the working dArkOS card as
 `/uInitrd`, boot once, photograph the panel. Nothing else changes.
+
+---
+
+## 2026-11-20 — distribution base chosen: **Arch-R**
+
+The port is built on [`archr-linux/Arch-R`](https://github.com/archr-linux/Arch-R)
+(Arch Linux ARM + LibreELEC/JELOS/ROCKNIX-derived pipeline) by adding a
+**`projects/ArchR/devices/RK3566`** profile. Upstream analysis, the exact
+device-profile files to add, the package gaps, and the transplant rule:
+[`18-archr-upstream-analysis.md`](18-archr-upstream-analysis.md).
+
+Relation to the stages below: **S1–S3 do not need Arch-R to build anything.**
+They use the working dArkOS card with one file swapped. Arch-R enters at **S3**
+(its kernel config, taken from ROCKNIX's RK3566 config) and becomes the whole
+system at **S5**. The overlay/panel workflow is inherited from
+`rgb10max2-internals` (see doc 18, "Reuse from our other device repos").

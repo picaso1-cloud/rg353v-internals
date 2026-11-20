@@ -50,6 +50,8 @@ the OS build at any time.
 | [15-darkos-migration.md](15-darkos-migration.md) | ArkOS → dArkOS migration record, RG353V boot-flow research, ROCKNIX wipe-Android requirement, hybridA–D results |
 | [16-gpu-vulkan-panvk-status.md](16-gpu-vulkan-panvk-status.md) | GPU/Vulkan status: vendor blob vs panfrost/panvk, hybrid experiments, Rockchip partition-GUID finding |
 | [17-archr-bringup-plan.md](17-archr-bringup-plan.md) | **Current plan** — ground-up Arch bring-up on the proven dArkOS chain: S0–S5, one variable per boot, panel console first |
+| [18-archr-upstream-analysis.md](18-archr-upstream-analysis.md) | **Arch-R upstream** (`archr-linux/Arch-R`): what it is, RK3566 device-profile files to add, package gaps, transplant rule |
+| [docs/ARCHIVE.md](docs/ARCHIVE.md) | Index of closed tracks/dead ends (ROCKNIX, hybridA–D) with evidence pointers — nothing deleted |
 
 ## Status
 
