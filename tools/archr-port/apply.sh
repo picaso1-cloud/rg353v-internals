@@ -63,6 +63,18 @@ cp "$HERE/storage/.config/profile.d/098-controller" \
 cp "$HERE/storage/.config/retroarch/autoconfig/udev/retrogame_joypad.cfg" \
    "$R/storage/.config/retroarch/autoconfig/udev/retrogame_joypad.cfg"
 
+# Do not auto-mount the second SD / eMMC partitions on this unit: TF2 is the
+# ROM collection and the eMMC holds Android. Re-enable in Settings
+# (system.automount=1) when ArchR should pick the ROM card up by itself.
+CFG="$R/storage/.config/system/configs/system.cfg"
+mkdir -p "$(dirname "$CFG")"
+touch "$CFG"
+if grep -q '^system\.automount=' "$CFG"; then
+  sed -i 's/^system\.automount=.*/system.automount=0/' "$CFG"
+else
+  echo 'system.automount=0' >> "$CFG"
+fi
+
 # Merge the RG353V gamepad into es_input.cfg. The image already carries
 # retrogame_joypad entries for older Anbernic boards (same driver, same
 # vendor/product), but they map hotkeyenable to button 8 (SELECT). On this
