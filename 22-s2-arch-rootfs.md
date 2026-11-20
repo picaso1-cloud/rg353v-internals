@@ -258,3 +258,52 @@ redraws the framebuffer console after `switch_root`; with SSH available this is
 now debuggable interactively (VT/fbcon attach, DRM handover), not blind.
 
 Next: S3 (own kernel → panfrost/panvk) with SSH as the working interface.
+
+---
+
+## 2026-11-21 — live session over SSH: the userland/kernel ABI gap
+
+First interactive session (`ssh root@192.168.0.198`, `root`/`ark`) on the running
+system:
+
+| Check | Result |
+|---|---|
+| `uname` | `5.10.226 #1 SMP aarch64` (dArkOS kernel) |
+| `os-release` | `ArchR 20261113` |
+| `systemctl is-system-running` | `degraded` (4 Arch-R feature units fail) |
+| `ip addr` | `wlan0 … 192.168.0.198/24`, `SSID CPE-C391` |
+| fb | `0 rockchipdrmfb`, `vtcon1 (M) frame buffer device`, bound |
+| `fgconsole` | `1` — so `tty1` **is** the active VT |
+
+### Why the panel looked "stuck"
+
+`getty@tty1` was inactive and **Arch-R ships no `getty@.service` and no
+`agetty`** — it boots straight to sway, so nothing ever draws on the console.
+`journald`’s `ForwardToConsole` goes to `/dev/console` = `ttyUSB0` (the loader’s
+forced console), i.e. the invisible UART.
+
+With no keyboard/mouse, a login prompt is pointless; replaced by
+`/usr/local/bin/s2-console.sh` — a 5 s status dashboard on `tty1`
+(uptime, state, IP, SSID, load, temps, disk, SSH hint).
+
+### The real finding: Arch-R is built for Linux 6.10+, we run 5.10
+
+```
+$ file /usr/bin/busybox
+… for GNU/Linux 6.10.0, stripped        (also setuid)
+$ chmod 600 /tmp/x
+chmod: … Function not implemented       (ENOSYS)
+$ python3 -c 'import os; os.chmod("/tmp/x",0o600)'   → works
+```
+
+So **the kernel is fine; the Arch userland assumes a newer ABI**. Busybox (and
+Arch-R scripts like `archr-levels`, which fails the same way on `/storage/.config`)
+hit the newer `fchmodat2` path and get `ENOSYS`. This explains a whole class of
+"weird" Arch-R failures on this setup.
+
+Workarounds used: set modes with `python3 os.chmod`, or run scripts via
+`/bin/sh <script>` (no exec bit needed).
+
+**Consequence for the plan:** S3 (our own kernel) is not just about
+panfrost/panvk — it also closes this ABI gap. Target a mainline kernel the
+userland was built against (6.12 LTS or ROCKNIX's 7.x), not 5.10.
