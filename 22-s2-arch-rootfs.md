@@ -72,3 +72,21 @@ stock dArkOS rootfs from the reference image).
 `S2-LOG.txt` shows `os: ArchR 20261113`, `kernel: Linux 5.10.226`, root on
 `/dev/mmcblk1p4` **ext4**, and a working tty1 login. That is the "our userspace
 on their kernel" milestone — S3 then swaps the kernel.
+
+---
+
+## 2026-11-20 — written to the card
+
+`write-p4.sh` completed on the 8 GB `NCard`. Read-back of the partition header:
+
+```
+/dev/mmcblk0p4: LABEL="ARCHR_ROOT" TYPE="ext4"
+                PARTLABEL="rootfs" PARTUUID="56d34af8-…3212"   (table untouched)
+```
+
+p1/p2 (loader) and p3 (boot) unchanged. Device boot pending.
+
+**Write-speed lesson:** with `bs=512` the 7.3 GB took **23 minutes at 5.5 MB/s**.
+p4 starts at exactly **116 MiB**, so `bs=1M` is aligned — both scripts now use
+that (≈10× faster). The last 52 KB of p4 were left untouched, which is beyond
+the filesystem end (fs = 7,784,588,288 B) and harmless.

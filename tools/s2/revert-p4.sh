@@ -16,9 +16,10 @@ done
 IMG="${IMG:-$DEF_IMG}"
 [ -n "$DEV" ] && [ -b "$DEV" ] || { echo "usage: $0 --device /dev/mmcblk0 [--image dArkOS.img]"; exit 2; }
 [ -f "$IMG" ] || { echo "missing image: $IMG"; exit 1; }
-P4_OFFSET=121634816; P4_SIZE=7786520064
+P4_START_SECT=237568; P4_SIZE_SECT=15208047
 if [ "$YES" != 1 ]; then echo "Restore stock p4 from $IMG. Type ERASE:"; read -r a; [ "$a" = ERASE ] || exit 1; fi
-sudo dd if="$IMG" of="$DEV" bs=8M skip=$((P4_OFFSET/8388608)) seek=$((P4_OFFSET/8388608)) \
-        count=$((P4_SIZE/8388608 + 1)) conv=fsync,notrunc status=progress
+P4_OFF_MIB=$((P4_START_SECT/2048))
+sudo dd if="$IMG" of="$DEV" bs=1M skip=$P4_OFF_MIB seek=$P4_OFF_MIB \
+        count=$((P4_SIZE_SECT/2048)) conv=fsync,notrunc status=progress
 sync; sudo partprobe "$DEV" 2>/dev/null || true
 echo "restored stock dArkOS p4."
