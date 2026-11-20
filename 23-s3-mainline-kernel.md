@@ -86,3 +86,42 @@ in **its own u-boot** from panel-ID detection — which we bypass by using
 dArkOS's loader. The one-line compatible swap did not produce a picture, so the
 next step is to check the early dmesg for the actual probe result (bound vs
 failed to find panel) before patching timings or adding an overlay.
+
+---
+
+## 2026-11-21 — RESULT: the ROCKNIX 7.2.11 Image is not executed by this loader
+
+Single-variable swap (Image + DTB only, loader/extlinux/uInitrd untouched, clean
+FAT with 54 MB free, 5.10 kernel kept on p4 as `/boot-backup/Image.5.10`):
+
+- `reboot` via `systemctl reboot` (no power cut)
+- device never came back on the network
+- **no new `BOOT-TRACE.txt`** after the swap (newest entry is 3 minutes older)
+- **no new userspace logs**
+
+⇒ the kernel never reached the initramfs. This is the same wall as the original
+ROCKNIX image attempts, now reproduced with a **raw arm64 Image** instead of a
+FIT: the dArkOS u-boot chain will not start the ROCKNIX kernel.
+
+### Correction to an earlier claim
+
+The boot that reached Wi-Fi and looked like a mainline success was **5.10**. The
+proof is in its own log: `Mali device driver loaded` — dArkOS's vendor driver,
+and that string **does not exist in the 7.2.11 kernel**
+(`strings KERNEL | grep -c` → 0). Lesson: never identify a kernel by behaviour
+when a version string is available in `BOOT-TRACE`/`s2-EARLY`.
+
+### Also fixed along the way
+
+| Problem | Cause | Fix |
+|---|---|---|
+| Random boots failing | boot FAT directory corrupted (resurrected 8.3 entries, truncated 13 MB kernel copy) | `mkfs.vfat` + minimal restore |
+| Systemd/rootfs errors | ext4 bitmap corruption from hard power-offs | `e2fsck -fy` |
+| Panel white/black | stale scanout page + backlight 77/255 | backlight → 120–255, redraw; DSI panel does bind (`panel id: 38 21`) |
+| Log spam | `archr-levels` writes a `chmod ENOSYS` error every 1.6 s | masked |
+
+### Status
+
+Reverted to 5.10 and verified (`Image` sha `ddbae54d…`). Working state:
+display + dashboard, Wi-Fi, SSH, ArchR userland, vendor Vulkan 1.3.
+Mainline/panfrost remains **blocked by the loader**, not by the kernel.
