@@ -1,0 +1,16 @@
+#!/bin/sh
+# Accurate mountpoint check via /proc/self/mounts. The BusyBox mountpoint
+# on this image misreports self-bind mounts (st_dev heuristic), which broke
+# archr-memory-manager's "/storage is not mounted" guard.
+# Usage: mountpoint [-q] PATH
+q=0
+if [ "$1" = "-q" ]; then q=1; shift; fi
+[ -n "$1" ] || exit 2
+p=$1
+esc=$(printf '%s' "$p" | sed 's/\\/\\\\/g; s/\t/\\t/g; s/ /\\040/g')
+if awk -v p="$esc" '$2 == p { found=1 } END { exit found ? 0 : 1 }' /proc/self/mounts; then
+  [ "$q" = 1 ] || echo "$p is a mountpoint"
+  exit 0
+fi
+[ "$q" = 1 ] || echo "$p is not a mountpoint" >&2
+exit 1

@@ -91,12 +91,31 @@ else
   echo "rewrite_config fix already present"
 fi
 
-say "6/8 persistent journal (so a failed sway boot leaves evidence)"
+say "6/8 persistent journal + DNS + /storage as mountpoint + zram"
 mkdir -p "$R/etc/systemd/journald.conf.d"
 cat > "$R/etc/systemd/journald.conf.d/91-persistent.conf" <<'EOF'
 [Journal]
 Storage=persistent
 SystemMaxUse=64M
+EOF
+# DNS: the router serves DNS fine, but systemd-resolved's external fallbacks
+# get UDP-blocked (logged as "degraded feature set TCP" spam every boot)
+mkdir -p "$R/etc/systemd/resolved.conf.d"
+printf '[Resolve]\nDNS=192.168.0.1\nFallbackDNS=8.8.8.8\nDomains=~.\n' \
+  > "$R/etc/systemd/resolved.conf.d/rg353v.conf"
+# /storage lives on the rootfs, but several ArchR services (memory-manager,
+# automount, the session) require it to BE a mountpoint: self-bind it.
+grep -q "^/storage /storage" "$R/etc/fstab" || echo "/storage /storage none bind 0 0" >> "$R/etc/fstab"
+# correct mountpoint (the BusyBox one misreports self-binds)
+cp -f "$HERE/rootfs/usr/bin/mountpoint" "$R/usr/bin/mountpoint"
+chmod 0755 "$R/usr/bin/mountpoint"
+# zram: 1536 MB zstd — the 2 GB handheld tier. Plain MB number (the script
+# regex is ^[0-9]+$); no swap file (SD-card wear).
+mkdir -p "$R/storage/.config"
+cat > "$R/storage/.config/swap.conf" <<'EOF'
+ZRAM_SIZE="1536"
+ZRAM_ALGO="zstd"
+SWAP_FILE_SIZE="0"
 EOF
 
 say "7/8 storage: /storage on the rootfs, not the 137 MB ROMS partition"
