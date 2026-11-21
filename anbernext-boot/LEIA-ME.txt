@@ -1,0 +1,2 @@
+Cartao de boot do AnberNext v3.26 (NeonDrive) para o RG353V.
+O relatorio de cada boot fica na unidade NEXTUI: relatorio-rg353v.txt

@@ -1,0 +1,47 @@
+/dts-v1/;
+
+/ {
+
+	__fixups__ {
+		cpu0_opp_table = "/fragment@0:target:0";
+	};
+
+	fragment@0 {
+		target = <0xffffffff>;
+
+		__overlay__ {
+
+			opp-1104000000 {
+				opp-microvolt = <0xc3500 0xc3500 0x118c30>;
+			};
+
+			opp-1416000000 {
+				opp-microvolt = <0xc96a8 0xc96a8 0x118c30>;
+			};
+
+			opp-1608000000 {
+				opp-microvolt = <0xcf850 0xcf850 0x118c30>;
+			};
+
+			opp-1800000000 {
+				opp-microvolt = <0xd59f8 0xd59f8 0x118c30>;
+			};
+
+			opp-1992000000 {
+				opp-microvolt = <0xdbba0 0xdbba0 0x118c30>;
+			};
+
+			opp-408000000 {
+				opp-microvolt = <0xb98c0 0xb98c0 0x118c30>;
+			};
+
+			opp-600000000 {
+				opp-microvolt = <0xbd358 0xbd358 0x118c30>;
+			};
+
+			opp-816000000 {
+				opp-microvolt = <0xc0df0 0xc0df0 0x118c30>;
+			};
+		};
+	};
+};

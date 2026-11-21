@@ -9,6 +9,14 @@ the OS build at any time.
 > **Cross-device context:** see `MASTER-PLAN.md` (three-device strategy),
 > `SHARED-KNOWLEDGE.md` (reusable findings), `docs/DECISIONS.md`,
 > `docs/RE-METHOD.md`. This repo is the RG353V slice of the platform.
+>
+> **Current firmware (2026-11-21):** the device runs **AnberNext v3.26** from TF1,
+> with the eMMC Android untouched. Pak/app development is in
+> [`anbernext-paks/`](anbernext-paks/README.md); the verified boot artifacts
+> (DTBs, overlays, boot config) are archived in
+> [`anbernext-boot/`](anbernext-boot/README.md); hardware/log field notes are in
+> [`anbernext-field-notes.md`](anbernext-field-notes.md). The ArchR track below
+> stays archived and reproducible.
 
 ## Device identity (as probed)
 
@@ -60,6 +68,9 @@ the OS build at any time.
 | [24-live-ram-system.md](24-live-ram-system.md) | **RAM-only live system + dual-mode toggle** (`/NORMAL` on p3): SSH lab that leaves the card free — no more card pulls for rootfs work |
 | [25-why-rocknix-wont-boot.md](25-why-rocknix-wont-boot.md) | **Sourced answer**: eMMC legacy bootloader gates SD boot; ROCKNIX wiki requires wiping Android; reversible options + backup sizes |
 | [26-garlicos-trick-on-rk3566.md](26-garlicos-trick-on-rk3566.md) | **GarlicOS trick analysed**: cannot reach mainline (uses the same eMMC chain + BSP kernel, no kexec); the *recovery-partition* variant is a safe rescue that keeps Android |
+| [anbernext-boot/](anbernext-boot/README.md) | **Verified boot artifacts** from AnberNext v3.26: both DTBs + decompiled DTS, undervolt overlays, `boot.scr`, Android markers, extraction script |
+| [anbernext-paks/](anbernext-paks/README.md) | **Writing paks**: runtime model, env vars, `show2` UI, store protocol, working template + build/install scripts |
+| [anbernext-field-notes.md](anbernext-field-notes.md) | Log locations, the empty-battery black screen of 2026-11-21, the `my355` store trick, pak-zip gotcha |
 
 ## Status
 
