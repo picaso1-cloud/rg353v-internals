@@ -173,7 +173,8 @@ sed -i '\|^/storage /storage none bind|d' "$R/etc/fstab"
 grep -q '^/storage\b' "$R/etc/fstab" && { echo "fstab still mounts /storage" >&2; exit 1; } || true
 mkdir -p "$R/storage/.config/profile.d" \
          "$R/storage/.config/emulationstation" \
-         "$R/storage/.config/retroarch/autoconfig/udev"
+         "$R/storage/.config/retroarch/autoconfig/udev" \
+         "$R/storage/.cache" "$R/storage/cache"
 cp "$HERE/storage/.config/profile.d/098-controller" \
    "$R/storage/.config/profile.d/098-controller"
 cp "$HERE/storage/.config/retroarch/autoconfig/udev/retrogame_joypad.cfg" \
@@ -204,7 +205,17 @@ if grep -q '^wifi\.enabled=' "$CFG"; then
 else
   echo 'wifi.enabled=1' >> "$CFG"
 fi
-# iwd profile kept provisioned for a later migration to the native stack
+# Wi-Fi management runs on iwd — that is what the launcher's Settings page and
+# wifictl speak. The image ships iwd, its main.conf already has the vendor
+# driver quirks (ControlPortOverNL80211=false); add our driver name to the SAE
+# blacklist (the 8821cs vendor driver advertises SAE but never delivers the
+# external-auth events, iwd then hangs instead of falling back to WPA2).
+IWD_CONF="$R/etc/iwd/main.conf"
+if [[ -f "$IWD_CONF" ]] && ! grep -q "8821cs" "$IWD_CONF"; then
+  sed -i 's|^SaeDisable=.*|&,8821cs|' "$IWD_CONF"
+fi
+[[ -f "$IWD_CONF" ]] && grep -m1 SaeDisable "$IWD_CONF"
+# provisioned network so the first boot associates without the UI
 mkdir -p "$R/var/lib/iwd"
 cat > "$R/var/lib/iwd/CPE-C391.psk" <<'EOF'
 [Security]
@@ -259,24 +270,25 @@ done
 if [[ ! -e "$S/archr-roms-migrate.service" ]]; then
   ln -sf /dev/null "$S/archr-roms-migrate.service"
 fi
-# one sshd only (sshd-s2), and no rfkill state daemon (it resurrected a
-# stale WLAN soft-block on every boot). Wi-Fi runs on wpa_supplicant +
-# busybox udhcpc — the only combo proven to associate on this 8821cs
-# (iwd autoconnect ended 'disconnected'; migrate later once stable, the
-# iwd profile is already provisioned at /var/lib/iwd/CPE-C391.psk).
-# iwd must stay masked: wifictl talks to it, and with wifi.enabled=1 its
-# `enable` path (not boot-off) is what runs.
-for u in sshd.service systemd-rfkill.service iwd.service connman.service connman-vpn.service; do
+# one sshd only (sshd-s2) and no rfkill state daemon (it resurrected a stale
+# WLAN soft-block on every boot). Wi-Fi runs on iwd — the stack the launcher's
+# Settings page and wifictl speak — with the network pre-provisioned and
+# wifi.enabled=1 so 099-networkservices reconnects at boot. The proven wpa
+# units stay shipped on disk; flip back by unmasking them in /etc/systemd.
+# archr-modules-firewall needs iptable_filter, which this kernel does not
+# build: mask it so the boot stays clean.
+for u in sshd.service systemd-rfkill.service connman.service connman-vpn.service \
+         wpa-wlan0.service dhcp-wlan0.service archr-modules-firewall.service; do
   [[ -L "$S/$u" ]] || ln -sf /dev/null "$S/$u"
 done
+if [[ -L "$S/iwd.service" && "$(readlink "$S/iwd.service")" = /dev/null ]]; then
+  rm -f "$S/iwd.service"
+  echo "unmasked iwd.service"
+fi
 rm -f "$S/multi-user.target.wants/wpa-wlan0.service" \
       "$S/multi-user.target.wants/dhcp-wlan0.service"
-# remove only stale MASK symlinks (a real unit file must survive: step 4
-# ships the improved wpa-wlan0.service)
-[[ -L "$S/wpa-wlan0.service" && "$(readlink "$S/wpa-wlan0.service")" = /dev/null ]] && rm -f "$S/wpa-wlan0.service" || true
-[[ -L "$S/dhcp-wlan0.service" && "$(readlink "$S/dhcp-wlan0.service")" = /dev/null ]] && rm -f "$S/dhcp-wlan0.service" || true
-ln -sf /etc/systemd/system/wpa-wlan0.service "$S/multi-user.target.wants/wpa-wlan0.service"
-ln -sf /etc/systemd/system/dhcp-wlan0.service "$S/multi-user.target.wants/dhcp-wlan0.service"
+mkdir -p "$S/multi-user.target.wants"
+ln -sf /usr/lib/systemd/system/iwd.service "$S/multi-user.target.wants/iwd.service"
 ln -sf /etc/systemd/system/sshd-s2.service "$S/multi-user.target.wants/sshd-s2.service"
 
 # autostart owns the UI start order (it writes 095-sway and the sway
@@ -308,7 +320,7 @@ ln -sf /usr/lib/systemd/system/getty@.service "$S/getty.target.wants/getty@tty2.
 say "sanity: required units exist"
 need=(archr.target archr-autostart.service archr-levels.service sway.service
       archr-launcher-session.service input.service headphones.service
-      sshd-s2.service wpa-wlan0.service)
+      sshd-s2.service iwd.service)
 for u in "${need[@]}"; do
   [[ -e "$R/usr/lib/systemd/system/$u" || -e "$S/$u" ]] || {
     echo "MISSING unit: $u" >&2; exit 1; }
