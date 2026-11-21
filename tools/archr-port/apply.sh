@@ -148,7 +148,10 @@ EOF
 mkdir -p "$R/etc/systemd/system/local-fs.target.wants"
 ln -sf /etc/systemd/system/rg353v-storage-bind.service \
        "$R/etc/systemd/system/local-fs.target.wants/rg353v-storage-bind.service"
-# correct mountpoint (the BusyBox one misreports self-binds)
+# correct mountpoint (the BusyBox one misreports self-binds). /usr/bin/mountpoint
+# is a SYMLINK to busybox in this image: rm first, or cp -f overwrites the
+# busybox BINARY through the link and the next boot dies at switch_root.
+rm -f "$R/usr/bin/mountpoint"
 cp -f "$HERE/rootfs/usr/bin/mountpoint" "$R/usr/bin/mountpoint"
 chmod 0755 "$R/usr/bin/mountpoint"
 # zram: 1536 MB zstd — the 2 GB handheld tier. Plain MB number (the script
@@ -310,6 +313,11 @@ for u in "${need[@]}"; do
   [[ -e "$R/usr/lib/systemd/system/$u" || -e "$S/$u" ]] || {
     echo "MISSING unit: $u" >&2; exit 1; }
 done
+# safety net for the symlink-clobber class of bug: busybox must still be an ELF
+if ! head -c4 "$R/usr/bin/busybox" | grep -q $'\x7fELF'; then
+  echo "FATAL: /usr/bin/busybox is not an ELF binary (a cp overwrote it?)" >&2
+  exit 1
+fi
 
 say "summary"
 echo "HW_DEVICE       : $(grep ^HW_DEVICE= "$R/etc/os-release")"
