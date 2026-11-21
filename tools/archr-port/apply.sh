@@ -72,9 +72,12 @@ rm -f "$R/storage/.cache/rfkill/"* 2>/dev/null || true
 mkdir -p "$R/storage/.cache/rfkill"
 rm -f "$R/etc/modules-load.d/rtw88.conf"   # mainline module name, not in this kernel
 # improved unit: unblocks rfkill inside the wait loop (the 8821cs rfkill
-# device can appear late) and once more after start
+# device can appear late) and once more after start. dhcp-wlan0 is shipped
+# too: an earlier apply bug deleted it from the card.
 cp -f "$HERE/../s2/rootfs-overlay/etc/systemd/system/wpa-wlan0.service" \
       "$R/etc/systemd/system/wpa-wlan0.service"
+cp -f "$HERE/../s2/rootfs-overlay/etc/systemd/system/dhcp-wlan0.service" \
+      "$R/etc/systemd/system/dhcp-wlan0.service"
 
 say "5/8 settings: chmod->ENOSYS fix (fchmodat2 needs Linux 6.6, we run 5.10)"
 F="$R/etc/profile.d/001-functions"
