@@ -325,3 +325,12 @@ the NextUI community, adapted for `rg353` by Pak-Plaza, updates via the OTA pak.
 * Screen is 640×480, pad-only (no touch in NextUI): design for D-pad + A/B/X/Y,
   and check `Input.pak` for the button map.
 * FAT32 timestamps are local/coarse; don't depend on them.
+
+---
+
+## Paks built in this repo
+
+| Pak | What it does |
+|---|---|
+| `template/System Info.pak` | starter/demo: env, logging, `show2` UI, real device data |
+| `DTB Selector.pak` | switches the panel device tree on NEXTBOOT (normal vs no-timing-change) and reboots — see [DTB-SELECTOR.md](DTB-SELECTOR.md) |

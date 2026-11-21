@@ -1,0 +1,13 @@
+{
+  "name": "DTB Selector",
+  "version": "v0.1.0",
+  "type": "TOOL",
+  "description": "Choose the panel device tree AnberNext boots: the normal one or the no-timing-change variant. Swaps rk3566-353v.dtb on the NEXTBOOT partition and reboots. Never touches the eMMC (Android) or the games card.",
+  "author": "souhail",
+  "repo_url": "https://github.com/picaso1-cloud/rg353v-internals",
+  "release_filename": "DTB.Selector.pak.zip",
+  "platforms": ["rg353"],
+  "changelog": {
+    "v0.1.0": "First version: normal vs no-timing-change panel DTB, current selection detected, atomic write, reboot."
+  }
+}
