@@ -1,0 +1,10 @@
+[Unit]
+Description=RG353V flight recorder (network/Wi-Fi/dmesg snapshots on disk)
+After=multi-user.target
+[Service]
+Type=simple
+ExecStart=/bin/sh /usr/local/bin/rg353v-flightrec.sh
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=multi-user.target

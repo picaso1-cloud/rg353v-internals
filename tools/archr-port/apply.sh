@@ -215,13 +215,18 @@ if [[ -f "$IWD_CONF" ]] && ! grep -q "8821cs" "$IWD_CONF"; then
   sed -i 's|^SaeDisable=.*|&,8821cs|' "$IWD_CONF"
 fi
 [[ -f "$IWD_CONF" ]] && grep -m1 SaeDisable "$IWD_CONF"
-# provisioned network so the first boot associates without the UI
+# provisioned networks so the first boot associates without the UI (iwd is
+# parked for now, but these stay current for the later UI migration)
 mkdir -p "$R/var/lib/iwd"
 cat > "$R/var/lib/iwd/CPE-C391.psk" <<'EOF'
 [Security]
 Passphrase=1234567890
 EOF
-chmod 0644 "$R/var/lib/iwd/CPE-C391.psk"
+cat > "$R/var/lib/iwd/HOME-NETWORK.psk" <<'EOF'
+[Security]
+Passphrase=1122334455
+EOF
+chmod 0644 "$R/var/lib/iwd/CPE-C391.psk" "$R/var/lib/iwd/HOME-NETWORK.psk"
 
 # Merge the RG353V gamepad into es_input.cfg. The image already carries
 # retrogame_joypad entries for older Anbernic boards (same driver, same
@@ -271,25 +276,33 @@ if [[ ! -e "$S/archr-roms-migrate.service" ]]; then
   ln -sf /dev/null "$S/archr-roms-migrate.service"
 fi
 # one sshd only (sshd-s2) and no rfkill state daemon (it resurrected a stale
-# WLAN soft-block on every boot). Wi-Fi runs on iwd — the stack the launcher's
-# Settings page and wifictl speak — with the network pre-provisioned and
-# wifi.enabled=1 so 099-networkservices reconnects at boot. The proven wpa
-# units stay shipped on disk; flip back by unmasking them in /etc/systemd.
+# WLAN soft-block on every boot). Wi-Fi runs on wpa_supplicant + udhcpc —
+# the combo proven to associate on this 8821cs. iwd stays masked: it scanned
+# but never issued a connect on this vendor driver, and the launcher's
+# Settings page (wifictl/iwd) is a later optimisation, not a boot dependency.
 # archr-modules-firewall needs iptable_filter, which this kernel does not
 # build: mask it so the boot stays clean.
 for u in sshd.service systemd-rfkill.service connman.service connman-vpn.service \
-         wpa-wlan0.service dhcp-wlan0.service archr-modules-firewall.service; do
+         iwd.service archr-modules-firewall.service; do
   [[ -L "$S/$u" ]] || ln -sf /dev/null "$S/$u"
 done
-if [[ -L "$S/iwd.service" && "$(readlink "$S/iwd.service")" = /dev/null ]]; then
-  rm -f "$S/iwd.service"
-  echo "unmasked iwd.service"
-fi
+mkdir -p "$S/multi-user.target.wants"
 rm -f "$S/multi-user.target.wants/wpa-wlan0.service" \
       "$S/multi-user.target.wants/dhcp-wlan0.service"
-mkdir -p "$S/multi-user.target.wants"
-ln -sf /usr/lib/systemd/system/iwd.service "$S/multi-user.target.wants/iwd.service"
+# restore the shipped unit files (a stale mask at the same path is a symlink
+# to /dev/null: remove it before enabling)
+[[ -L "$S/wpa-wlan0.service" && "$(readlink "$S/wpa-wlan0.service")" = /dev/null ]] && rm -f "$S/wpa-wlan0.service" || true
+[[ -L "$S/dhcp-wlan0.service" && "$(readlink "$S/dhcp-wlan0.service")" = /dev/null ]] && rm -f "$S/dhcp-wlan0.service" || true
+[[ -f "$S/wpa-wlan0.service" ]] || cp -f "$HERE/../s2/rootfs-overlay/etc/systemd/system/wpa-wlan0.service" "$S/wpa-wlan0.service"
+[[ -f "$S/dhcp-wlan0.service" ]] || cp -f "$HERE/../s2/rootfs-overlay/etc/systemd/system/dhcp-wlan0.service" "$S/dhcp-wlan0.service"
+ln -sf /etc/systemd/system/wpa-wlan0.service "$S/multi-user.target.wants/wpa-wlan0.service"
+ln -sf /etc/systemd/system/dhcp-wlan0.service "$S/multi-user.target.wants/dhcp-wlan0.service"
 ln -sf /etc/systemd/system/sshd-s2.service "$S/multi-user.target.wants/sshd-s2.service"
+# flight recorder: snapshots on disk survive hangs and hard power-offs
+cp -f "$HERE/rootfs/usr/local/bin/rg353v-flightrec.sh" "$R/usr/local/bin/rg353v-flightrec.sh"
+chmod 0755 "$R/usr/local/bin/rg353v-flightrec.sh"
+cp -f "$HERE/rootfs/etc/systemd/system/rg353v-flightrec.service" "$S/rg353v-flightrec.service"
+ln -sf /etc/systemd/system/rg353v-flightrec.service "$S/multi-user.target.wants/rg353v-flightrec.service"
 
 # autostart owns the UI start order (it writes 095-sway and the sway
 # config first). Do NOT enable sway.service / archr-launcher-session.service
