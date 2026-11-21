@@ -26,16 +26,24 @@ MNT=/mnt/archr-port
 
 say() { printf '\n== %s\n' "$*"; }
 
-[[ -b "$CARD" ]] || { echo "not a block device: $CARD" >&2; exit 1; }
+[[ -e "$CARD" ]] || { echo "no such device or image: $CARD" >&2; exit 1; }
 [[ -f "$GPU_BLOB" ]] || { echo "missing GPU blob: $GPU_BLOB" >&2; exit 1; }
 
-LOOP=$(losetup -f --show -P "$CARD")
+# A block device is a card (partition 4 holds the rootfs); a regular file is
+# an ext4 filesystem image (like rg353v-backup/arch-rootfs/archr-rootfs.img).
+if [[ -b "$CARD" ]]; then
+  LOOP=$(losetup -f --show -P "$CARD")
+  PART="${LOOP}p4"
+else
+  LOOP=$(losetup -f --show "$CARD")
+  PART="$LOOP"
+fi
 trap 'umount "$MNT" 2>/dev/null || true; losetup -d "$LOOP" 2>/dev/null || true' EXIT
 
 mkdir -p "$MNT"
-mount "${LOOP}p4" "$MNT"
+mount "$PART" "$MNT"
 R="$MNT"
-echo "card: $CARD -> $LOOP, rootfs mounted at $R"
+echo "target: $CARD -> $LOOP, rootfs mounted at $R"
 
 say "1/8 device identity (HW_DEVICE RK3326 -> RK3566)"
 sed -i \
@@ -70,17 +78,31 @@ say "3b/8 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewire
 sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' \
   "$R/usr/bin/archr-launcher-session" 2>/dev/null || true
 
-say "4/8 Wi-Fi: wpa_supplicant (proven on this unit) + wifi.enabled=1, drop the saved rfkill soft-block"
+say "4/8 Wi-Fi: ship wpa_supplicant + units (the clean image has neither), wifi.enabled=1"
 rm -f "$R/storage/.cache/rfkill/"* 2>/dev/null || true
 mkdir -p "$R/storage/.cache/rfkill"
 rm -f "$R/etc/modules-load.d/rtw88.conf"   # mainline module name, not in this kernel
-# improved unit: unblocks rfkill inside the wait loop (the 8821cs rfkill
-# device can appear late) and once more after start. dhcp-wlan0 is shipped
-# too: an earlier apply bug deleted it from the card.
+# The original ArchR image ships iwd/connman but no wpa_supplicant. Ours comes
+# from the dArkOS image (Debian 13 aarch64) plus its four missing libs.
+mkdir -p "$R/usr/local/wpa/lib" "$R/usr/local/bin" "$R/etc/wpa_supplicant"
+cp -f "$HERE/external/wpa/wpa_supplicant" "$R/usr/local/wpa/wpa_supplicant"
+cp -f "$HERE/external/wpa/lib/"*           "$R/usr/local/wpa/lib/"
+python3 -c "import os,sys; [os.chmod(p,0o755) for p in sys.argv[1:]]" \
+  "$R/usr/local/wpa/wpa_supplicant" "$R/usr/local/wpa/lib/"* 2>/dev/null || true
+cp -f "$HERE/../s2/rootfs-overlay/usr/local/bin/udhcpc-wlan0.sh" "$R/usr/local/bin/"
+cp -f "$HERE/../s2/rootfs-overlay/etc/wpa_supplicant/wpa_supplicant-wlan0.conf" \
+      "$R/etc/wpa_supplicant/wpa_supplicant-wlan0.conf"
+# units: improved wpa (rfkill unblock in the wait loop), dhcp, and sshd-s2
+# (the stock sshd has no ExecStartPre=ssh-keygen -A, and the clean image has
+# no host keys at all)
 cp -f "$HERE/../s2/rootfs-overlay/etc/systemd/system/wpa-wlan0.service" \
       "$R/etc/systemd/system/wpa-wlan0.service"
 cp -f "$HERE/../s2/rootfs-overlay/etc/systemd/system/dhcp-wlan0.service" \
       "$R/etc/systemd/system/dhcp-wlan0.service"
+cp -f "$HERE/../s2/rootfs-overlay/etc/systemd/system/sshd-s2.service" \
+      "$R/etc/systemd/system/sshd-s2.service"
+python3 -c "import os,sys; [os.chmod(p,0o755) for p in sys.argv[1:]]" \
+  "$R/usr/local/bin/udhcpc-wlan0.sh" 2>/dev/null || true
 
 say "5/8 settings: chmod->ENOSYS fix (fchmodat2 needs Linux 6.6, we run 5.10)"
 F="$R/etc/profile.d/001-functions"
@@ -99,13 +121,33 @@ Storage=persistent
 SystemMaxUse=64M
 EOF
 # DNS: the router serves DNS fine, but systemd-resolved's external fallbacks
-# get UDP-blocked (logged as "degraded feature set TCP" spam every boot)
-mkdir -p "$R/etc/systemd/resolved.conf.d"
+# get UDP-blocked (logged as "degraded feature set TCP" spam every boot).
+# /etc/systemd/resolved.conf.d is a symlink to /storage/.config/resolved.conf.d
+# on this image, so create the target explicitly.
+mkdir -p "$R/storage/.config/resolved.conf.d"
 printf '[Resolve]\nDNS=192.168.0.1\nFallbackDNS=8.8.8.8\nDomains=~.\n' \
-  > "$R/etc/systemd/resolved.conf.d/rg353v.conf"
+  > "$R/storage/.config/resolved.conf.d/rg353v.conf"
 # /storage lives on the rootfs, but several ArchR services (memory-manager,
-# automount, the session) require it to BE a mountpoint: self-bind it.
-grep -q "^/storage /storage" "$R/etc/fstab" || echo "/storage /storage none bind 0 0" >> "$R/etc/fstab"
+# automount, the session) require it to BE a mountpoint. An fstab "none bind"
+# line is ignored by systemd's mount generator, so use a dedicated unit.
+# This also makes automount's "system disk" detection see mmcblk1 instead of
+# nothing (a second safety net against ever touching the eMMC).
+cat > "$R/etc/systemd/system/rg353v-storage-bind.service" <<'EOF'
+[Unit]
+Description=Self-bind /storage so it is a mountpoint (ArchR expects one)
+DefaultDependencies=no
+After=local-fs.target
+Before=multi-user.target archr-memory-manager.service archr-automount.service
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'mountpoint -q /storage || mount -o bind /storage /storage'
+[Install]
+WantedBy=local-fs.target
+EOF
+mkdir -p "$R/etc/systemd/system/local-fs.target.wants"
+ln -sf /etc/systemd/system/rg353v-storage-bind.service \
+       "$R/etc/systemd/system/local-fs.target.wants/rg353v-storage-bind.service"
 # correct mountpoint (the BusyBox one misreports self-binds)
 cp -f "$HERE/rootfs/usr/bin/mountpoint" "$R/usr/bin/mountpoint"
 chmod 0755 "$R/usr/bin/mountpoint"
@@ -117,9 +159,14 @@ ZRAM_SIZE="1536"
 ZRAM_ALGO="zstd"
 SWAP_FILE_SIZE="0"
 EOF
+# TF2 ROMs + BIOS: automount mounts the second card at /storage/games-external
+# (eMMC skipped via the mmcblk0boot0 guard) and publishes /run/archr/roms2.
+# BIOS is shared by symlink, no copies.
+ln -sfn /storage/games-external/bios "$R/storage/bios"
 
 say "7/8 storage: /storage on the rootfs, not the 137 MB ROMS partition"
 sed -i -E 's|^([^#].*[[:space:]]/storage[[:space:]].*)$|# disabled for ArchR (rootfs /storage used): \1|' "$R/etc/fstab"
+sed -i '\|^/storage /storage none bind|d' "$R/etc/fstab"
 grep -q '^/storage\b' "$R/etc/fstab" && { echo "fstab still mounts /storage" >&2; exit 1; } || true
 mkdir -p "$R/storage/.config/profile.d" \
          "$R/storage/.config/emulationstation" \
@@ -130,15 +177,18 @@ cp "$HERE/storage/.config/retroarch/autoconfig/udev/retrogame_joypad.cfg" \
    "$R/storage/.config/retroarch/autoconfig/udev/retrogame_joypad.cfg"
 
 # Do not auto-mount the second SD / eMMC partitions on this unit: TF2 is the
-# ROM collection and the eMMC holds Android. Re-enable in Settings
+# ROM collection and the eMMC holds Android. The user can re-enable it in Settings
 # (system.automount=1) when ArchR should pick the ROM card up by itself.
+# 2026-11-21: TF2 wiring is DONE — automount is ON, the eMMC is guarded by the
+# mmcblk0boot0 check and the /storage bind makes system-disk detection work.
+# ROMs come from /storage/games-external/roms (roms2), BIOS via symlink.
 CFG="$R/storage/.config/system/configs/system.cfg"
 mkdir -p "$(dirname "$CFG")"
 touch "$CFG"
 if grep -q '^system\.automount=' "$CFG"; then
-  sed -i 's/^system\.automount=.*/system.automount=0/' "$CFG"
+  sed -i 's/^system\.automount=.*/system.automount=1/' "$CFG"
 else
-  echo 'system.automount=0' >> "$CFG"
+  echo 'system.automount=1' >> "$CFG"
 fi
 
 # Wi-Fi enable flag: the image ships wifi.enabled=0, and 099-networkservices
@@ -213,7 +263,7 @@ fi
 # iwd profile is already provisioned at /var/lib/iwd/CPE-C391.psk).
 # iwd must stay masked: wifictl talks to it, and with wifi.enabled=1 its
 # `enable` path (not boot-off) is what runs.
-for u in sshd.service systemd-rfkill.service iwd.service; do
+for u in sshd.service systemd-rfkill.service iwd.service connman.service connman-vpn.service; do
   [[ -L "$S/$u" ]] || ln -sf /dev/null "$S/$u"
 done
 rm -f "$S/multi-user.target.wants/wpa-wlan0.service" \
@@ -224,6 +274,7 @@ rm -f "$S/multi-user.target.wants/wpa-wlan0.service" \
 [[ -L "$S/dhcp-wlan0.service" && "$(readlink "$S/dhcp-wlan0.service")" = /dev/null ]] && rm -f "$S/dhcp-wlan0.service" || true
 ln -sf /etc/systemd/system/wpa-wlan0.service "$S/multi-user.target.wants/wpa-wlan0.service"
 ln -sf /etc/systemd/system/dhcp-wlan0.service "$S/multi-user.target.wants/dhcp-wlan0.service"
+ln -sf /etc/systemd/system/sshd-s2.service "$S/multi-user.target.wants/sshd-s2.service"
 
 # autostart owns the UI start order (it writes 095-sway and the sway
 # config first). Do NOT enable sway.service / archr-launcher-session.service
