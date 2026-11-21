@@ -67,10 +67,14 @@ fi
 chmod 0755 "$B/libmali.so.1.9.0" "$B/libmali-hook.so.1.9.0"
 echo "blob: $(strings -a "$B/libmali.so.1.9.0" | grep -m1 'Bifrost-')"
 
-say "4/8 Wi-Fi: drop the saved rfkill soft-block, drop dead module conf, use iwd"
+say "4/8 Wi-Fi: wpa_supplicant (proven on this unit) + wifi.enabled=1, drop the saved rfkill soft-block"
 rm -f "$R/storage/.cache/rfkill/"* 2>/dev/null || true
 mkdir -p "$R/storage/.cache/rfkill"
 rm -f "$R/etc/modules-load.d/rtw88.conf"   # mainline module name, not in this kernel
+# improved unit: unblocks rfkill inside the wait loop (the 8821cs rfkill
+# device can appear late) and once more after start
+cp -f "$HERE/../s2/rootfs-overlay/etc/systemd/system/wpa-wlan0.service" \
+      "$R/etc/systemd/system/wpa-wlan0.service"
 
 say "5/8 settings: chmod->ENOSYS fix (fchmodat2 needs Linux 6.6, we run 5.10)"
 F="$R/etc/profile.d/001-functions"
@@ -112,19 +116,17 @@ else
   echo 'system.automount=0' >> "$CFG"
 fi
 
-# Wi-Fi: the image ships wifi.enabled=0, and 099-networkservices then runs
-# `wifictl boot-off`, which rfkill-blocks the radio seconds after boot —
-# that was our "Network is down". Turn Wi-Fi on and provision the network
-# for iwd (the image's native stack: wifictl is iwd-only, its iwctl wrapper
-# is a no-op without iwd running, and it stops wpa_supplicant to avoid
-# fighting for the radio). iwd does its own DHCP (main.conf
-# EnableNetworkConfiguration=true) and already carries the vendor-driver
-# quirks (ControlPortOverNL80211=false).
+# Wi-Fi enable flag: the image ships wifi.enabled=0, and 099-networkservices
+# then runs `wifictl boot-off`, which rfkill-BLOCKS the radio seconds after
+# boot — that was our "Network is down" at every attempt. With =1 it runs
+# `wifictl enable` (rfkill unblock) instead; its `connect` is a harmless
+# no-op while iwd is parked (see below).
 if grep -q '^wifi\.enabled=' "$CFG"; then
   sed -i 's/^wifi\.enabled=.*/wifi.enabled=1/' "$CFG"
 else
   echo 'wifi.enabled=1' >> "$CFG"
 fi
+# iwd profile kept provisioned for a later migration to the native stack
 mkdir -p "$R/var/lib/iwd"
 cat > "$R/var/lib/iwd/CPE-C391.psk" <<'EOF'
 [Security]
@@ -180,20 +182,23 @@ if [[ ! -e "$S/archr-roms-migrate.service" ]]; then
   ln -sf /dev/null "$S/archr-roms-migrate.service"
 fi
 # one sshd only (sshd-s2), and no rfkill state daemon (it resurrected a
-# stale WLAN soft-block on every boot). Wi-Fi itself runs on iwd — the
-# image's native stack (see the Wi-Fi step above) — so our interim
-# wpa_supplicant units stand down and the statically-enabled iwd takes over.
-for u in sshd.service systemd-rfkill.service wpa-wlan0.service dhcp-wlan0.service; do
+# stale WLAN soft-block on every boot). Wi-Fi runs on wpa_supplicant +
+# busybox udhcpc — the only combo proven to associate on this 8821cs
+# (iwd autoconnect ended 'disconnected'; migrate later once stable, the
+# iwd profile is already provisioned at /var/lib/iwd/CPE-C391.psk).
+# iwd must stay masked: wifictl talks to it, and with wifi.enabled=1 its
+# `enable` path (not boot-off) is what runs.
+for u in sshd.service systemd-rfkill.service iwd.service; do
   [[ -L "$S/$u" ]] || ln -sf /dev/null "$S/$u"
 done
 rm -f "$S/multi-user.target.wants/wpa-wlan0.service" \
       "$S/multi-user.target.wants/dhcp-wlan0.service"
-# iwd is statically enabled in multi-user.target.wants; make sure no stale
-# mask blocks it
-if [[ -L "$S/iwd.service" && "$(readlink "$S/iwd.service")" = /dev/null ]]; then
-  rm -f "$S/iwd.service"
-  echo "unmasked iwd.service"
-fi
+# remove only stale MASK symlinks (a real unit file must survive: step 4
+# ships the improved wpa-wlan0.service)
+[[ -L "$S/wpa-wlan0.service" && "$(readlink "$S/wpa-wlan0.service")" = /dev/null ]] && rm -f "$S/wpa-wlan0.service" || true
+[[ -L "$S/dhcp-wlan0.service" && "$(readlink "$S/dhcp-wlan0.service")" = /dev/null ]] && rm -f "$S/dhcp-wlan0.service" || true
+ln -sf /etc/systemd/system/wpa-wlan0.service "$S/multi-user.target.wants/wpa-wlan0.service"
+ln -sf /etc/systemd/system/dhcp-wlan0.service "$S/multi-user.target.wants/dhcp-wlan0.service"
 
 # autostart owns the UI start order (it writes 095-sway and the sway
 # config first). Do NOT enable sway.service / archr-launcher-session.service
