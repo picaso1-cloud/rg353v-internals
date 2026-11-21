@@ -1,0 +1,13 @@
+{
+  "name": "System Info",
+  "version": "v0.1.0",
+  "type": "TOOL",
+  "description": "Shows battery, temperature, Wi-Fi and free space as a small full-screen panel. Template pak for AnberNext on the RG353V.",
+  "author": "YOUR NAME",
+  "repo_url": "https://github.com/YOUR-USER/YOUR-REPO",
+  "release_filename": "System.Info.pak.zip",
+  "platforms": ["rg353"],
+  "changelog": {
+    "v0.1.0": "First version."
+  }
+}
