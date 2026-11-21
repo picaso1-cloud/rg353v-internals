@@ -120,12 +120,11 @@ cat > "$R/etc/systemd/journald.conf.d/91-persistent.conf" <<'EOF'
 Storage=persistent
 SystemMaxUse=64M
 EOF
-# DNS: the router serves DNS fine, but systemd-resolved's external fallbacks
-# get UDP-blocked (logged as "degraded feature set TCP" spam every boot).
-# /etc/systemd/resolved.conf.d is a symlink to /storage/.config/resolved.conf.d
-# on this image, so create the target explicitly.
+# DNS comes from DHCP through systemd-resolved (the udhcpc hook registers the
+# router per link). Do NOT pin a router IP here: it broke as soon as the
+# device moved from 192.168.0.x to 192.168.31.x. Keep only a fallback.
 mkdir -p "$R/storage/.config/resolved.conf.d"
-printf '[Resolve]\nDNS=192.168.0.1\nFallbackDNS=8.8.8.8\nDomains=~.\n' \
+printf '[Resolve]\nFallbackDNS=1.1.1.1 8.8.8.8\n' \
   > "$R/storage/.config/resolved.conf.d/rg353v.conf"
 # /storage lives on the rootfs, but several ArchR services (memory-manager,
 # automount, the session) require it to BE a mountpoint. An fstab "none bind"
