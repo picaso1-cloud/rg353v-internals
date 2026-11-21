@@ -89,3 +89,30 @@ Also: this rootfs has **no `/var/log`** — everything lives in
 
 `apply.sh --safe` masks the UI so the boot cannot reach the GPU; start it over
 SSH once the box is verified stable.
+
+## TF2 ROMs/BIOS wiring (2026-11-21)
+
+- `system.automount=1` — ArchR's own automount handles the second card:
+  it skips the system disk by name and the eMMC via the
+  `/sys/class/block/mmcblk0boot0` Android guard, then mounts TF2
+  (`/dev/mmcblk2p1`, **FAT32**, 233 GB) at `/storage/games-external`
+  and publishes `/run/archr/roms2 → /storage/games-external/roms`.
+- `/storage/bios → /storage/games-external/bios` symlink (730 files) so
+  every core finds BIOSes without copies.
+- `archr-roms-migrate` stays masked (nothing must move the collection).
+- The launcher lists TF2 systems natively via roms2; saves write back to
+  the card (vfat rw, uid=0). Restarting `archr-automount` stacks duplicate
+  mounts (cosmetic; a fresh boot mounts once).
+
+## PortMaster / commander (file manager)
+
+- **PortMaster was never installed** — the launcher's `Start PortMaster.sh`
+  runs `/usr/bin/start_portmaster.sh`, which unpacks
+  `/usr/config/PortMaster/release/PortMaster.zip` into
+  `/storage/roms/ports/PortMaster` on first run. It failed silently in the
+  fchmodat2 era (unzip cannot set permissions); with the shim it installs
+  and runs, and its device report correctly says `RG353V/VS - ArchR`.
+  Known upstream nit: it tees device_info to a path containing the model
+  string `RG353V/VS` — the slash breaks the filename (cosmetic).
+- **commander** (file manager, `/usr/bin/commander`) runs fine under sway;
+  earlier failures were the same era.
