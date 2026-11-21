@@ -67,11 +67,9 @@ fi
 chmod 0755 "$B/libmali.so.1.9.0" "$B/libmali-hook.so.1.9.0"
 echo "blob: $(strings -a "$B/libmali.so.1.9.0" | grep -m1 'Bifrost-')"
 
-say "4/8 Wi-Fi: drop the saved rfkill soft-block, unblock with the unit, drop dead module conf"
+say "4/8 Wi-Fi: drop the saved rfkill soft-block, drop dead module conf, use iwd"
 rm -f "$R/storage/.cache/rfkill/"* 2>/dev/null || true
 mkdir -p "$R/storage/.cache/rfkill"
-cp -f "$HERE/../s2/rootfs-overlay/etc/systemd/system/wpa-wlan0.service" \
-      "$R/etc/systemd/system/wpa-wlan0.service"
 rm -f "$R/etc/modules-load.d/rtw88.conf"   # mainline module name, not in this kernel
 
 say "5/8 settings: chmod->ENOSYS fix (fchmodat2 needs Linux 6.6, we run 5.10)"
@@ -113,6 +111,26 @@ if grep -q '^system\.automount=' "$CFG"; then
 else
   echo 'system.automount=0' >> "$CFG"
 fi
+
+# Wi-Fi: the image ships wifi.enabled=0, and 099-networkservices then runs
+# `wifictl boot-off`, which rfkill-blocks the radio seconds after boot —
+# that was our "Network is down". Turn Wi-Fi on and provision the network
+# for iwd (the image's native stack: wifictl is iwd-only, its iwctl wrapper
+# is a no-op without iwd running, and it stops wpa_supplicant to avoid
+# fighting for the radio). iwd does its own DHCP (main.conf
+# EnableNetworkConfiguration=true) and already carries the vendor-driver
+# quirks (ControlPortOverNL80211=false).
+if grep -q '^wifi\.enabled=' "$CFG"; then
+  sed -i 's/^wifi\.enabled=.*/wifi.enabled=1/' "$CFG"
+else
+  echo 'wifi.enabled=1' >> "$CFG"
+fi
+mkdir -p "$R/var/lib/iwd"
+cat > "$R/var/lib/iwd/CPE-C391.psk" <<'EOF'
+[Security]
+Passphrase=1234567890
+EOF
+chmod 0644 "$R/var/lib/iwd/CPE-C391.psk"
 
 # Merge the RG353V gamepad into es_input.cfg. The image already carries
 # retrogame_joypad entries for older Anbernic boards (same driver, same
@@ -161,13 +179,21 @@ done
 if [[ ! -e "$S/archr-roms-migrate.service" ]]; then
   ln -sf /dev/null "$S/archr-roms-migrate.service"
 fi
-# one network manager (wpa_supplicant) and one sshd (sshd-s2) only:
-# iwd and the stock sshd are enabled statically in /usr/lib and would race
-# our units for wlan0 / port 22. systemd-rfkill re-applies stale soft-blocks
-# (it killed Wi-Fi on every boot); the wpa unit unblocks by itself now.
-for u in iwd.service sshd.service systemd-rfkill.service; do
+# one sshd only (sshd-s2), and no rfkill state daemon (it resurrected a
+# stale WLAN soft-block on every boot). Wi-Fi itself runs on iwd — the
+# image's native stack (see the Wi-Fi step above) — so our interim
+# wpa_supplicant units stand down and the statically-enabled iwd takes over.
+for u in sshd.service systemd-rfkill.service wpa-wlan0.service dhcp-wlan0.service; do
   [[ -L "$S/$u" ]] || ln -sf /dev/null "$S/$u"
 done
+rm -f "$S/multi-user.target.wants/wpa-wlan0.service" \
+      "$S/multi-user.target.wants/dhcp-wlan0.service"
+# iwd is statically enabled in multi-user.target.wants; make sure no stale
+# mask blocks it
+if [[ -L "$S/iwd.service" && "$(readlink "$S/iwd.service")" = /dev/null ]]; then
+  rm -f "$S/iwd.service"
+  echo "unmasked iwd.service"
+fi
 
 # autostart owns the UI start order (it writes 095-sway and the sway
 # config first). Do NOT enable sway.service / archr-launcher-session.service
