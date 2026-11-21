@@ -19,8 +19,9 @@ SAFE=0
 [[ "${1:-}" == "--safe" ]] && { SAFE=1; shift; }
 CARD="${1:-/dev/mmcblk0}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-GPU_BLOB="${GPU_BLOB:-/home/souhail/Andr36oid/rg353v-backup/gpu/libmali-bifrost-g52-g29p1.so}"
-GPU_HOOK="${GPU_HOOK:-/home/souhail/Andr36oid/rg353v-backup/gpu/libmali-hook-g52.so.1.9.0}"
+GPU_BLOB="${GPU_BLOB:-/home/souhail/Andr36oid/rg353v-backup/gpu/libmali-bifrost-g52-g24p0-wayland-gbm.so}"
+GPU_HOOK="${GPU_HOOK:-/home/souhail/Andr36oid/rg353v-backup/gpu/libmali-hook-g24p0.so.1.9.0}"
+SHIM_SO="${SHIM_SO:-$HERE/fchmodat2_compat.so}"
 MNT=/mnt/archr-port
 
 say() { printf '\n== %s\n' "$*"; }
@@ -53,19 +54,21 @@ find "$R/usr/lib/autostart/quirks/platforms/RK3566" \
      "$R/usr/lib/autostart/quirks/devices/Anbernic RG353V-VS" \
      -type f -exec chmod 0755 {} +
 
-say "3/8 GPU: Mali-G52 DDK blob (the G31 blob rejects the G52 and locks the kernel)"
+say "3/8 GPU: Mali-G52 wayland-gbm DDK (g24p0; the G31 blob and the g29p1
+fbdev-only build both fail under Wayland)"
 B="$R/usr/lib"
-if [[ -f "$B/libmali.so.1.9.0" && ! -f "$B/libmali.so.1.9.0.g31.bak" ]]; then
-  cp "$B/libmali.so.1.9.0" "$B/libmali.so.1.9.0.g31.bak"
-fi
+[[ -f "$B/libmali.so.1.9.0" ]] || true
 cp -f "$GPU_BLOB" "$B/libmali.so.1.9.0"
-if [[ -f "$GPU_HOOK" ]]; then
-  [[ -f "$B/libmali-hook.so.1.9.0" && ! -f "$B/libmali-hook.so.1.9.0.g31.bak" ]] && \
-    cp "$B/libmali-hook.so.1.9.0" "$B/libmali-hook.so.1.9.0.g31.bak"
-  cp -f "$GPU_HOOK" "$B/libmali-hook.so.1.9.0"
-fi
-chmod 0755 "$B/libmali.so.1.9.0" "$B/libmali-hook.so.1.9.0"
-echo "blob: $(strings -a "$B/libmali.so.1.9.0" | grep -m1 'Bifrost-')"
+cp -f "$GPU_HOOK" "$B/libmali-hook.so.1.9.0"
+[[ -f "$SHIM_SO" ]] && cp -f "$SHIM_SO" "$B/fchmodat2_compat.so"
+find "$B" -maxdepth 1 -name "libmali*" -exec python3 -c "import os,sys; [os.chmod(p,0o755) for p in sys.argv[1:]]" {} + 2>/dev/null || true
+chmod 0644 "$B/fchmodat2_compat.so" 2>/dev/null || true
+echo "/usr/lib/fchmodat2_compat.so" > "$R/etc/ld.so.preload"
+echo "blob: $(strings -a "$B/libmali.so.1.9.0" | grep -m1 'Bifrost-')  + fchmodat2 shim preloaded"
+
+say "3b/8 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewire-pulse)"
+sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' \
+  "$R/usr/bin/archr-launcher-session" 2>/dev/null || true
 
 say "4/8 Wi-Fi: wpa_supplicant (proven on this unit) + wifi.enabled=1, drop the saved rfkill soft-block"
 rm -f "$R/storage/.cache/rfkill/"* 2>/dev/null || true
