@@ -28,4 +28,6 @@ DEVICE_GPU_TEMP_SENSOR="/sys/devices/virtual/thermal/thermal_zone1/temp"
 DEVICE_HAS_FAN="false"
 DEVICE_HAS_HDMI="false"
 DEVICE_HEADPHONE_DEV="/dev/input/by-path/platform-rk-headset-event"
+# jack switch polarity: SW bit SET (value 1) = headphones inserted
+DEVICE_HEADPHONE_INSERTED="1"
 EOF
