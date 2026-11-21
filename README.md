@@ -70,7 +70,8 @@ the OS build at any time.
 | [26-garlicos-trick-on-rk3566.md](26-garlicos-trick-on-rk3566.md) | **GarlicOS trick analysed**: cannot reach mainline (uses the same eMMC chain + BSP kernel, no kexec); the *recovery-partition* variant is a safe rescue that keeps Android |
 | [anbernext-boot/](anbernext-boot/README.md) | **Verified boot artifacts** from AnberNext v3.26: both DTBs + decompiled DTS, undervolt overlays, `boot.scr`, Android markers, extraction script |
 | [anbernext-paks/](anbernext-paks/README.md) | **Writing paks**: runtime model, env vars, `show2` UI, store protocol, working template + build/install scripts |
-| [anbernext-field-notes.md](anbernext-field-notes.md) | Log locations, the empty-battery black screen of 2026-11-21, the `my355` store trick, pak-zip gotcha |
+| [anbernext-field-notes.md](anbernext-field-notes.md) | Log locations, both 2026-11-21 black-screen incidents (battery, then `DVKR` loader state), the `my355` store trick, pak-zip gotcha |
+| [anbernext-rescue/](anbernext-rescue/README.md) | **Black-screen rescue kit**: patched initramfs with a stage-1 trace, TCP rescue shell (:2323), backlight self-heal, stay-alive guard |
 
 ## Status
 

@@ -44,6 +44,27 @@ boot. If it still stays black **while charging**, the panel init is suspect —
 that variant for panels that dislike timing changes). Not needed unless the
 battery is ruled out.
 
+## 2026-11-21 second incident: black screen on every boot
+
+Different from the empty-battery one: after a full charge the device still showed
+nothing, and **no new boot report or logs were written to the card at all**. That
+puts the failure before stage 2 (`nextui-init`).
+
+Byte comparison with the pristine image:
+
+* p1, p2, p3 (every boot file), p4 (ext4 clean) and p5 matched the image;
+* only the gap between the 32 KiB Rockchip FIT and p1 (sectors 64–16383) differed.
+
+The difference was a **`DVKR` runtime state block at offset `0x380000`**, which the
+bootloader writes (zeros in the pristine image). A power cut mid-write can leave
+it inconsistent and the loader never reaches the kernel. Fixed by rewriting
+sectors 64–16383 from the pristine image; the old block is saved as
+`rg353v-backup/anbernext-loader-state-20261121.bin`.
+
+If this recurs, the same 8 MiB rewrite is the fix. To diagnose a black screen
+without pulling the card, see `anbernext-rescue/`: stage-1 trace on p3, a TCP
+rescue shell, backlight logging/self-heal, and a stay-alive guard.
+
 ## Pak-Plaza runs as `my355` on purpose
 
 `Tools/rg353/Pak-Plaza.pak/launch-brick.sh` sets `STORE_PLATFORM=my355`: the
