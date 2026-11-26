@@ -81,6 +81,15 @@ echo "blob: $(strings -a "$B/libmali.so.1.9.0" | grep -m1 'Bifrost-')  + fchmoda
 say "3b/10 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewire-pulse)"
 sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' \
   "$R/usr/bin/archr-launcher-session" 2>/dev/null || true
+# The patch above lives in a file the archr-launcher package owns: every
+# package upgrade puts the upstream file back and the launcher then dies with
+# "The futex facility returned an unexpected error code." A pacman hook
+# re-applies it (and the rewrite_config fix) after every transaction.
+mkdir -p "$R/usr/local/bin" "$R/etc/pacman.d/hooks"
+cp -f "$HERE/rootfs/usr/local/bin/rg353v-port-hooks" "$R/usr/local/bin/rg353v-port-hooks"
+cp -f "$HERE/rootfs/etc/pacman.d/hooks/99-rg353v-port.hook" "$R/etc/pacman.d/hooks/99-rg353v-port.hook"
+chmod 0755 "$R/usr/local/bin/rg353v-port-hooks" 2>/dev/null || true
+chmod 0644 "$R/etc/pacman.d/hooks/99-rg353v-port.hook" 2>/dev/null || true
 
 say "4/10 Wi-Fi: ship wpa_supplicant + units (the clean image has neither), wifi.enabled=1"
 rm -f "$R/storage/.cache/rfkill/"* 2>/dev/null || true

@@ -1,0 +1,15 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Name = archr
+Name = archr-launcher
+Name = autostart
+Name = quirks
+Name = system-utils
+Name = archr-joypad
+
+[Action]
+Description = RG353V port: re-apply the patches the packages overwrite
+When = PostTransaction
+Exec = /usr/local/bin/rg353v-port-hooks

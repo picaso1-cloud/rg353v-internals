@@ -1,0 +1,37 @@
+#!/bin/bash
+# RG353V port: re-apply the patches that the Arch-R packages overwrite.
+#
+# The port patches files that the archr / archr-launcher packages own:
+#   * /usr/bin/archr-launcher-session  -> SDL_AUDIODRIVER=alsa
+#     (the SDL2 pulse backend aborts with pipewire-pulse on this kernel:
+#      "The futex facility returned an unexpected error code.")
+#   * /etc/profile.d/001-functions      -> the rewrite_config fix (chmod/ENOSYS)
+# Any package upgrade puts the upstream file back, so this runs from a
+# pacman hook (99-rg353v-port.hook) after every transaction.
+set -u
+
+LOG=/tmp/rg353v-port-hooks.log
+{
+  echo "=== rg353v-port-hooks $(date -u) ==="
+
+  S=/usr/bin/archr-launcher-session
+  if [ -f "$S" ]; then
+    if grep -q "^export SDL_AUDIODRIVER=pulseaudio" "$S"; then
+      sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' "$S"
+      echo "  SDL_AUDIODRIVER -> alsa"
+    else
+      echo "  SDL_AUDIODRIVER already ok"
+    fi
+  fi
+
+  F=/etc/profile.d/001-functions
+  APPEND=/usr/lib/autostart/quirks/platforms/RK3566/001-functions.rg353v-append
+  if [ -f "$F" ] && [ -f "$APPEND" ] && ! grep -q "RG353V patch" "$F"; then
+    cat "$APPEND" >> "$F"
+    echo "  001-functions: rewrite_config fix re-applied"
+  fi
+
+  # The quirks and the units are ours (not package owned), but a package
+  # upgrade can still bring its own copies: make sure ours are in place.
+  echo "  done"
+} >>"$LOG" 2>&1
