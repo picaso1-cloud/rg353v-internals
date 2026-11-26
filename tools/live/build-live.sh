@@ -87,6 +87,21 @@ say "=============================================="
 say "  RG353V LIVE (RAM only) - $(date -u)"
 say "=============================================="
 
+# ---- Wi-Fi module: BEFORE the mode switch ----
+# The Arch-R rootfs is an RK3326 image: it has no 8821cs driver, and the
+# rootfs's own kernel-overlays are only populated by ARCH-R's busybox init,
+# which our initramfs replaces. So the driver is loaded here, while the
+# initramfs still has the firmware (/lib/firmware) and the module
+# (/live/modules). Once loaded it stays in the kernel across switch_root.
+say "wifi module..."
+# The BT UART and the WiFi SDIO chip race during the probe: the UART has to
+# finish first (TurboRelic's patch 0002 does the same for the mainline rtw88
+# driver). A short settle avoids a probe that hangs the kernel.
+sleep 2
+insmod /live/modules/8821cs.ko 2>>/live.log || say "insmod failed (see /live.log)"
+for i in $(seq 1 20); do [ -e /sys/class/net/wlan0 ] && break; sleep 1; done
+say "wlan0: $([ -e /sys/class/net/wlan0 ] && echo present || echo MISSING)"
+
 # ---- mode switch: a /NORMAL file on p3 boots the real rootfs instead ----
 mkdir -p /mnt/boot
 MODE=live
@@ -108,11 +123,7 @@ if [ "$MODE" = normal ]; then
   fi
 fi
 
-say "wifi module..."
-insmod /live/modules/8821cs.ko 2>>/live.log || say "insmod failed (see /live.log)"
-for i in $(seq 1 20); do [ -e /sys/class/net/wlan0 ] && break; sleep 1; done
-say "wlan0: $([ -e /sys/class/net/wlan0 ] && echo present || echo MISSING)"
-
+say "wlan0 up..."
 if [ -e /sys/class/net/wlan0 ]; then
   ifconfig wlan0 up 2>/dev/null
   say "wpa_supplicant..."

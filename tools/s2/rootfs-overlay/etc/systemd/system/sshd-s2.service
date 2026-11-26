@@ -3,6 +3,9 @@ Description=OpenSSH server (S2)
 After=network.target
 [Service]
 Type=simple
+# /var/lib/sshd is a symlink into /storage/.cache/ssh; on a fresh card that
+# folder does not exist yet and ssh-keygen cannot save the host keys there.
+ExecStartPre=/bin/sh -c 'mkdir -p /var/lib/sshd && chmod 0755 /var/lib/sshd'
 ExecStartPre=/usr/bin/ssh-keygen -A
 ExecStart=/usr/sbin/sshd -D -e
 Restart=always

@@ -49,14 +49,14 @@ echo "target: $CARD -> $LOOP, rootfs mounted at $R"
 # the custom units below can be placed there. Safe for older images too.
 mkdir -p "$R/etc/systemd/system"
 
-say "1/8 device identity (HW_DEVICE RK3326 -> RK3566)"
+say "1/10 device identity (HW_DEVICE RK3326 -> RK3566)"
 sed -i \
   -e 's/^HW_DEVICE=.*/HW_DEVICE="RK3566"/' \
   -e 's/^HW_CPU=.*/HW_CPU="Rockchip RK3566"/' \
   -e 's/^DISTRO_DEVICE=.*/DISTRO_DEVICE="RK3566"/' \
   "$R/etc/os-release"
 
-say "2/8 platform + device quirks"
+say "2/10 platform + device quirks"
 mkdir -p "$R/usr/lib/autostart/quirks/platforms" "$R/usr/lib/autostart/quirks/devices"
 cp -a "$HERE/rootfs/usr/lib/autostart/quirks/platforms/RK3566" \
       "$R/usr/lib/autostart/quirks/platforms/"
@@ -66,7 +66,7 @@ find "$R/usr/lib/autostart/quirks/platforms/RK3566" \
      "$R/usr/lib/autostart/quirks/devices/Anbernic RG353V-VS" \
      -type f -exec chmod 0755 {} +
 
-say "3/8 GPU: Mali-G52 wayland-gbm DDK (g24p0; the G31 blob and the g29p1
+say "3/10 GPU: Mali-G52 wayland-gbm DDK (g24p0; the G31 blob and the g29p1
 fbdev-only build both fail under Wayland)"
 B="$R/usr/lib"
 [[ -f "$B/libmali.so.1.9.0" ]] || true
@@ -78,11 +78,11 @@ chmod 0644 "$B/fchmodat2_compat.so" 2>/dev/null || true
 echo "/usr/lib/fchmodat2_compat.so" > "$R/etc/ld.so.preload"
 echo "blob: $(strings -a "$B/libmali.so.1.9.0" | grep -m1 'Bifrost-')  + fchmodat2 shim preloaded"
 
-say "3b/8 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewire-pulse)"
+say "3b/10 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewire-pulse)"
 sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' \
   "$R/usr/bin/archr-launcher-session" 2>/dev/null || true
 
-say "4/8 Wi-Fi: ship wpa_supplicant + units (the clean image has neither), wifi.enabled=1"
+say "4/10 Wi-Fi: ship wpa_supplicant + units (the clean image has neither), wifi.enabled=1"
 rm -f "$R/storage/.cache/rfkill/"* 2>/dev/null || true
 mkdir -p "$R/storage/.cache/rfkill"
 rm -f "$R/etc/modules-load.d/rtw88.conf"   # mainline module name, not in this kernel
@@ -108,7 +108,7 @@ cp -f "$HERE/../s2/rootfs-overlay/etc/systemd/system/sshd-s2.service" \
 python3 -c "import os,sys; [os.chmod(p,0o755) for p in sys.argv[1:]]" \
   "$R/usr/local/bin/udhcpc-wlan0.sh" 2>/dev/null || true
 
-say "5/8 settings: chmod->ENOSYS fix (fchmodat2 needs Linux 6.6, we run 5.10)"
+say "5/10 settings: chmod->ENOSYS fix (fchmodat2 needs Linux 6.6, we run 5.10)"
 F="$R/etc/profile.d/001-functions"
 if ! grep -q "RG353V patch" "$F"; then
   cat "$HERE/rootfs/etc/profile.d/001-functions.rg353v-append" >> "$F"
@@ -117,7 +117,7 @@ else
   echo "rewrite_config fix already present"
 fi
 
-say "6/8 persistent journal + DNS + /storage as mountpoint + zram"
+say "6/10 persistent journal + DNS + /storage as mountpoint + zram"
 mkdir -p "$R/etc/systemd/journald.conf.d"
 cat > "$R/etc/systemd/journald.conf.d/91-persistent.conf" <<'EOF'
 [Journal]
@@ -170,7 +170,7 @@ EOF
 # BIOS is shared by symlink, no copies.
 ln -sfn /storage/games-external/bios "$R/storage/bios"
 
-say "7/8 storage: /storage on the rootfs, not the 137 MB ROMS partition"
+say "7/10 storage: /storage on the rootfs, not the 137 MB ROMS partition"
 sed -i -E 's|^([^#].*[[:space:]]/storage[[:space:]].*)$|# disabled for ArchR (rootfs /storage used): \1|' "$R/etc/fstab"
 sed -i '\|^/storage /storage none bind|d' "$R/etc/fstab"
 grep -q '^/storage\b' "$R/etc/fstab" && { echo "fstab still mounts /storage" >&2; exit 1; } || true
@@ -264,7 +264,7 @@ else:
 open(es, 'w').write(src)
 PY
 
-say "8/8 systemd: ArchR target, unmask the session, keep SSH/Wi-Fi"
+say "8/10 systemd: ArchR target, unmask the session, keep SSH/Wi-Fi"
 S="$R/etc/systemd/system"
 # units that were masked with /dev/null during bring-up
 for u in archr-automount.service archr-autostart.service \
@@ -332,6 +332,95 @@ ln -sf /usr/lib/systemd/system/archr.target "$S/default.target"
 rm -f "$S/multi-user.target.wants/s2-console.service"
 rm -f "$S/getty.target.wants/getty@tty1.service"
 ln -sf /usr/lib/systemd/system/getty@.service "$S/getty.target.wants/getty@tty2.service"
+
+say "9/10 kernel overlays: the dArkOS 5.10 modules and firmware"
+# The Arch-R image is an RK3326 one: /usr/lib/modules and /usr/lib/firmware are
+# symlinks into /run/kernel-overlays/..., which ARCH-R's *busybox init*
+# populates (busybox init -> chroot /sysroot /usr/sbin/kernel-overlays-setup).
+# Our initramfs replaces that init, so without this step the rootfs ends up
+# with NO modules and NO firmware at all: no 8821cs (no wlan0), no rtl_bt
+# firmware, and kmod-static-nodes skipped ("modules.devname" not found).
+KTAR="${DARKOS_KERNEL_TAR:-/home/souhail/Andr36oid/rg353v-backup/darkos-kernel/kernel-5.10.226.tar.gz}"
+OV="$R/usr/lib/kernel-overlays/base/lib"
+if [ -f "$KTAR" ]; then
+  TMPD=$(mktemp -d)
+  tar -xzf "$KTAR" -C "$TMPD"
+  mkdir -p "$OV/modules/5.10.226" "$OV/firmware"
+  cp -a "$TMPD/usr/lib/modules/5.10.226/." "$OV/modules/5.10.226/" 2>/dev/null || true
+  # firmware: keep what the image already ships, add what dArkOS has
+  cp -rn "$TMPD/lib/firmware/." "$OV/firmware/" 2>/dev/null || true
+  rm -rf "$TMPD"
+  echo "modules: $(find "$OV/modules/5.10.226" -name '*.ko' | wc -l) ko   firmware: $(ls "$OV/firmware" | wc -l) entries"
+  echo "8821cs: $(ls "$OV/modules/5.10.226/kernel/drivers/net/wireless/rockchip_wlan/rtl8821cs/" 2>/dev/null | tr '\n' ' ')"
+else
+  echo "!! dArkOS kernel tarball not found: $KTAR"
+fi
+
+say "10/10 boot: kernel-overlays-setup, the 8821cs driver, pipewire's dbus policy"
+# (a) run kernel-overlays-setup ourselves (upstream does it in the busybox init)
+# NOTE: no sysinit.target and no ordering against systemd-tmpfiles-setup here.
+# An earlier version ordered this unit Before=systemd-modules-load.service with
+# After=local-fs.target and WantedBy=sysinit.target: systemd then hit an
+# ordering cycle and DELETED the systemd-tmpfiles-setup jobs, so /var/run,
+# /var/lock, /var/tmp and /run/archr were never created. Without /var/run
+# sway could not make /run/sway/sway-daemon.conf (the UI died in a restart
+# loop), the pulse socket path (/var/run/0-runtime-dir/pulse/native) was
+# missing, and every button was dead.
+cat > "$R/etc/systemd/system/rg353v-kernel-overlays.service" <<'EOF'
+[Unit]
+Description=Kernel overlays (modules and firmware) for this kernel
+After=local-fs.target
+Before=rg353v-wifi-driver.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/kernel-overlays-setup
+# kernel-overlays-setup only runs depmod when a *user* overlay exists, so the
+# module index of the base overlay would stay missing.
+ExecStartPost=-/usr/sbin/depmod -a
+
+[Install]
+WantedBy=multi-user.target
+EOF
+mkdir -p "$R/etc/systemd/system/multi-user.target.wants"
+ln -sf /etc/systemd/system/rg353v-kernel-overlays.service \
+       "$R/etc/systemd/system/multi-user.target.wants/rg353v-kernel-overlays.service"
+# (b) the Wi-Fi driver: the initramfs loads it early, this is the safety net
+# (and the way to load it after a module reload)
+cat > "$R/etc/systemd/system/rg353v-wifi-driver.service" <<'EOF'
+[Unit]
+Description=Load the 8821cs Wi-Fi driver (the Arch-R image is an RK3326 one)
+After=rg353v-kernel-overlays.service
+Before=wpa-wlan0.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'test -e /sys/class/net/wlan0 || modprobe 8821cs'
+ExecStartPost=/bin/sh -c 'i=0; while [ $i -lt 20 ] && [ ! -e /sys/class/net/wlan0 ]; do sleep 1; i=$((i+1)); done'
+EOF
+mkdir -p "$R/etc/systemd/system/multi-user.target.wants"
+ln -sf /etc/systemd/system/rg353v-wifi-driver.service \
+       "$R/etc/systemd/system/multi-user.target.wants/rg353v-wifi-driver.service"
+# (c) pipewire-pulse could not own org.pulseaudio.Server: the image ships no
+# dbus policy for it, so pactl (and anything else that asks over dbus) failed.
+mkdir -p "$R/usr/share/dbus-1/system.d"
+cat > "$R/usr/share/dbus-1/system.d/pipewire-pulse.conf" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <policy context="default">
+    <allow own="org.pulseaudio.Server"/>
+    <allow own="org.pulseaudio.server"/>
+    <allow send_destination="org.pulseaudio.Server"/>
+    <allow send_destination="org.pulseaudio.server"/>
+    <allow send_destination="org.pulseaudio.server.control"/>
+    <allow send_destination="org.pulseaudio.Control"/>
+  </policy>
+</busconfig>
+EOF
 
 say "sanity: required units exist"
 need=(archr.target archr-autostart.service archr-levels.service sway.service
