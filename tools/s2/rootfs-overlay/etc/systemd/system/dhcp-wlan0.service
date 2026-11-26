@@ -1,7 +1,10 @@
 [Unit]
 Description=DHCP client on wlan0
-After=wpa-wlan0.service
-Wants=wpa-wlan0.service
+# iwd owns the interface (it is what the launcher's Settings page and
+# wifictl speak); this unit only asks for the address. It must not pull
+# wpa_supplicant in: two managers on one interface fight each other.
+After=iwd.service
+Wants=iwd.service
 [Service]
 Type=simple
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do [ -e /sys/class/net/wlan0 ] && break; sleep 1; done'

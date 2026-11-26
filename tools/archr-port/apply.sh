@@ -102,7 +102,7 @@ cp -f "$HERE/rootfs/etc/pacman.d/hooks/99-rg353v-port.hook" "$R/etc/pacman.d/hoo
 chmod 0755 "$R/usr/local/bin/rg353v-port-hooks" 2>/dev/null || true
 chmod 0644 "$R/etc/pacman.d/hooks/99-rg353v-port.hook" 2>/dev/null || true
 
-say "4/10 Wi-Fi: ship wpa_supplicant + units (the clean image has neither), wifi.enabled=1"
+say "4/10 Wi-Fi: iwd + udhcpc (the launcher speaks iwd), wpa_supplicant as fallback, wifi.enabled=1"
 rm -f "$R/storage/.cache/rfkill/"* 2>/dev/null || true
 mkdir -p "$R/storage/.cache/rfkill"
 rm -f "$R/etc/modules-load.d/rtw88.conf"   # mainline module name, not in this kernel
@@ -231,35 +231,45 @@ fi
 # Wi-Fi enable flag: the image ships wifi.enabled=0, and 099-networkservices
 # then runs `wifictl boot-off`, which rfkill-BLOCKS the radio seconds after
 # boot — that was our "Network is down" at every attempt. With =1 it runs
-# `wifictl enable` (rfkill unblock) instead; its `connect` is a harmless
-# no-op while iwd is parked (see below).
+# `wifictl enable` (rfkill unblock) instead, and its `connect` is the
+# launcher's own path (iwd is running, see below).
 if grep -q '^wifi\.enabled=' "$CFG"; then
   sed -i 's/^wifi\.enabled=.*/wifi.enabled=1/' "$CFG"
 else
   echo 'wifi.enabled=1' >> "$CFG"
 fi
-# Wi-Fi management runs on iwd — that is what the launcher's Settings page and
+# Wi-Fi management runs on iwd - that is what the launcher's Settings page and
 # wifictl speak. The image ships iwd, its main.conf already has the vendor
 # driver quirks (ControlPortOverNL80211=false); add our driver name to the SAE
 # blacklist (the 8821cs vendor driver advertises SAE but never delivers the
 # external-auth events, iwd then hangs instead of falling back to WPA2).
+# With that quirk iwd associates on this board (verified 2026-11-26: it
+# connected to a saved profile on its own and its scan lists the networks,
+# which is what the Settings page shows).
 IWD_CONF="$R/etc/iwd/main.conf"
 if [[ -f "$IWD_CONF" ]] && ! grep -q "8821cs" "$IWD_CONF"; then
   sed -i 's|^SaeDisable=.*|&,8821cs|' "$IWD_CONF"
 fi
 [[ -f "$IWD_CONF" ]] && grep -m1 SaeDisable "$IWD_CONF"
-# provisioned networks so the first boot associates without the UI (iwd is
-# parked for now, but these stay current for the later UI migration)
-mkdir -p "$R/var/lib/iwd"
-cat > "$R/var/lib/iwd/CPE-C391.psk" <<'EOF'
+# Provisioned networks, so the unit associates on the first boot without the
+# UI. They go into the FHS bridge's target: /var/lib/iwd is a symlink to
+# /storage/.cache/iwd (the tmpfiles bridge), and a file written into the
+# image's /var/lib/iwd is lost when the bridge takes over.
+IWD_STATE="$R/storage/.cache/iwd"
+mkdir -p "$IWD_STATE"
+cat > "$IWD_STATE/CPE-C391.psk" <<'EOF'
 [Security]
 Passphrase=1234567890
 EOF
-cat > "$R/var/lib/iwd/HOME-NETWORK.psk" <<'EOF'
+cat > "$IWD_STATE/HOME-NETWORK.psk" <<'EOF'
 [Security]
 Passphrase=1122334455
 EOF
-chmod 0644 "$R/var/lib/iwd/CPE-C391.psk" "$R/var/lib/iwd/HOME-NETWORK.psk"
+chmod 0644 "$IWD_STATE/CPE-C391.psk" "$IWD_STATE/HOME-NETWORK.psk"
+# iwd must run: unmask it (the port masks it further down) and enable it.
+rm -f "$S/iwd.service"
+mkdir -p "$S/multi-user.target.wants"
+ln -sf /usr/lib/systemd/system/iwd.service "$S/multi-user.target.wants/iwd.service"
 
 # Merge the RG353V gamepad into es_input.cfg. The image already carries
 # retrogame_joypad entries for older Anbernic boards (same driver, same
@@ -309,19 +319,22 @@ if [[ ! -e "$S/archr-roms-migrate.service" ]]; then
   ln -sf /dev/null "$S/archr-roms-migrate.service"
 fi
 # one sshd only (sshd-s2) and no rfkill state daemon (it resurrected a stale
-# WLAN soft-block on every boot). Wi-Fi runs on wpa_supplicant + udhcpc —
-# the combo proven to associate on this 8821cs. iwd stays masked: it scanned
-# but never issued a connect on this vendor driver, and the launcher's
-# Settings page (wifictl/iwd) is a later optimisation, not a boot dependency.
+# WLAN soft-block on every boot). Wi-Fi runs on iwd + udhcpc: iwd is what the
+# launcher's Settings page and wifictl speak, and with the SAE quirk it
+# associates on this 8821cs (verified 2026-11-26). wpa_supplicant stays
+# installed as a fallback but is not enabled: two managers on one interface
+# fight each other.
 # archr-modules-firewall needs iptable_filter, which this kernel does not
 # build: mask it so the boot stays clean.
 for u in sshd.service systemd-rfkill.service connman.service connman-vpn.service \
-         iwd.service archr-modules-firewall.service; do
+         archr-modules-firewall.service; do
   [[ -L "$S/$u" ]] || ln -sf /dev/null "$S/$u"
 done
 mkdir -p "$S/multi-user.target.wants"
 rm -f "$S/multi-user.target.wants/wpa-wlan0.service" \
       "$S/multi-user.target.wants/dhcp-wlan0.service"
+ln -sf /usr/lib/systemd/system/dhcp-wlan0.service \
+       "$S/multi-user.target.wants/dhcp-wlan0.service"
 # restore the shipped unit files (a stale mask at the same path is a symlink
 # to /dev/null: remove it before enabling)
 [[ -L "$S/wpa-wlan0.service" && "$(readlink "$S/wpa-wlan0.service")" = /dev/null ]] && rm -f "$S/wpa-wlan0.service" || true
