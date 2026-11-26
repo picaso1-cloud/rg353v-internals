@@ -45,6 +45,10 @@ mount "$PART" "$MNT"
 R="$MNT"
 echo "target: $CARD -> $LOOP, rootfs mounted at $R"
 
+# The Arch-R rootfs (v3.1.1+) does not ship /etc/systemd/system; create it so
+# the custom units below can be placed there. Safe for older images too.
+mkdir -p "$R/etc/systemd/system"
+
 say "1/8 device identity (HW_DEVICE RK3326 -> RK3566)"
 sed -i \
   -e 's/^HW_DEVICE=.*/HW_DEVICE="RK3566"/' \
@@ -360,4 +364,7 @@ echo "chmod fix       : $(grep -c 'RG353V patch' "$F") marker(s)"
 sync
 echo
 echo "done. put the card in the device and power on; SSH stays available."
-[[ "$SAFE" = 1 ]] && echo "SAFE mode: start the UI over SSH with: systemctl unmask sway archr-launcher-session && systemctl start sway"
+if [[ "$SAFE" = 1 ]]; then
+  echo "SAFE mode: start the UI over SSH with: systemctl unmask sway archr-launcher-session && systemctl start sway"
+fi
+exit 0

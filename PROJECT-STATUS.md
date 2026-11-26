@@ -23,9 +23,20 @@ be compacted and work resumed from this file alone. Mirrored in the device repos
 - **Studied** the dArkOS 5.10.226 kernel + boot chain (`27-darkos-kernel-study.md`)
   and the TurboRelic mainline 6.15 BSP (`28-turborelic-bsp-study.md`) — the
   reference for the later PanVK/Vulkan + mainline-kernel phase.
-- **Not yet verified on hardware:** the full patch → flash → boot cycle. The
+- **Image built + verified offline (2026-11-26 21:13):**
+  `downloads/archr-rg353v.img`, 8,053,063,680 B (== dArkOS base),
+  sha256 `c8891017…72ae565`. GPT intact (5 parts), p4 = ext4 `ARCHR_ROOT`
+  (1,900,544 × 4K), `NAME="ArchR"`, `HW_DEVICE="RK3566"`, g29p1 Mali blob +
+  hook installed, `default.target→archr.target`, custom units enabled. **Ready
+  to flash.** Full run log + 7 bugs found/fixed: `30-archr-flashable-image-build.md`.
+- **Still not verified on hardware:** the full patch → flash → boot cycle. The
   port itself is proven (`tools/archr-port/`); the patcher's image assembly
-  (resize + write to p4) needs a hardware test.
+  (resize + write to p4) is now verified at the image level only.
+  Key open risk: dArkOS p4 is **btrfs** but Arch-R rootfs is **ext4** — the
+  dArkOS initramfs/kernel must mount ext4 for the image to boot.
+- **Fixes applied to the port during the real run** (`tools/archr-port/apply.sh`):
+  `mkdir -p /etc/systemd/system` (missing in Arch-R v3.1.1) and replace the
+  trailing `[[ … ]] && echo` with `if…fi; exit 0` (it exited 1 on success).
 - **Next (Phase 2):** PanVK Vulkan for Mali-G52, TurboRelic mainline kernel,
   and the RG405V GarlicOS profile.
 

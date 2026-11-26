@@ -7,11 +7,17 @@
 # The GPU blob and hook are the Mali-G52 vendor driver. They are not in the
 # repo — point them at your local copies (see tools/archr-port/README.md).
 # Override with the environment variables GPU_BLOB / GPU_HOOK if you prefer.
+#
+# NOTE: the port's preferred blob is the g24p0 wayland-gbm build
+# (libmali-bifrost-g52-g24p0-wayland-gbm.so). That build is not available on
+# this server, so we use the dArkOS g29p1 build (libmali-bifrost-g52-g29p1.so),
+# which also supports wayland-gbm (EGL_KHR_platform_gbm/wayland). If you have
+# the g24p0 build, point gpu_blob/gpu_hook at it instead.
 device: rg353v
 soc: rk3566
 firmware: arch-r
 base_firmware: darkos
 base_version: latest
 rootfs_port: tools/archr-port/apply.sh
-gpu_blob: /home/souhail/Andr36oid/rg353v-backup/gpu/libmali-bifrost-g52-g24p0-wayland-gbm.so
-gpu_hook: /home/souhail/Andr36oid/rg353v-backup/gpu/libmali-hook-g24p0.so.1.9.0
+gpu_blob: /home/souhail/Anbernic/downloads/darkos-rg353v/gpu/libmali-bifrost-g52-g29p1.so
+gpu_hook: /home/souhail/Anbernic/downloads/darkos-rg353v/gpu/libmali-hook.so.1.9.0

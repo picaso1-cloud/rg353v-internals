@@ -85,18 +85,33 @@ def apply_port(rootfs_file, profile, repo_root):
 
 
 def resize_rootfs(rootfs_file, target_size_bytes):
-    """Resize the ext4 filesystem to the target size (in bytes)."""
-    blocks = target_size_bytes // 1024
-    subprocess.run(["resize2fs", rootfs_file, str(blocks)], check=True)
+    """Grow the ext4 rootfs to target_size_bytes.
+
+    resize2fs takes a size in *filesystem* blocks, so a raw block count is
+    ambiguous (1K vs 4K). Pass a ``K`` (1024-byte) suffix so it is explicit;
+    the result is <= target_size_bytes and still fits the partition.
+    """
+    # resize2fs refuses to resize a dirty filesystem; clean it first.
+    # -f forces a check, -y assumes yes to repairs (no terminal in CI/patcher).
+    subprocess.run(["e2fsck", "-f", "-y", rootfs_file], check=True)
+    subprocess.run(
+        ["resize2fs", rootfs_file, f"{target_size_bytes // 1024}K"], check=True
+    )
 
 
 def write_rootfs(base_image, partition, rootfs_file):
-    """Write the rootfs file into the base image's partition using ``dd``."""
-    subprocess.run(
-        ["dd", "if=" + rootfs_file, "of=" + base_image, "bs=512",
-         f"seek={partition.start}", f"count={partition.size}"],
-        check=True,
-    )
+    """Write the rootfs file into the base image's partition.
+
+    Uses Python I/O (not ``dd``) because ``dd`` truncates the output file to
+    the last sector written, which would corrupt the GPT backup header.
+    """
+    with open(base_image, "r+b") as out, open(rootfs_file, "rb") as src:
+        out.seek(partition.start * 512)
+        while True:
+            chunk = src.read(1024 * 1024)  # 1 MiB chunks
+            if not chunk:
+                break
+            out.write(chunk)
 
 
 def load_profile(profile):
@@ -116,7 +131,9 @@ def patch(image, profile, out, base=None):
     in the profile or downloaded.
     """
     profile_dict = load_profile(profile)
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(profile)))
+    # Profile lives at <repo>/archr-patcher/profiles/<name>.yaml; the port
+    # script path is relative to <repo> (e.g. tools/archr-port/apply.sh).
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(profile))))
 
     # Determine the dArkOS base image.
     if base is None:
