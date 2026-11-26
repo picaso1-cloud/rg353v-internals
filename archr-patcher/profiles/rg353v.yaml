@@ -1,0 +1,17 @@
+# Device profile for the Anbernic RG353V (RK3566).
+#
+# The patcher uses the dArkOS image as the base (it has the correct boot chain
+# p1/p2 + p3 kernel/DTB/initramfs/extlinux.conf) and replaces only p4 (rootfs)
+# with the ported Arch-R rootfs.
+#
+# The GPU blob and hook are the Mali-G52 vendor driver. They are not in the
+# repo — point them at your local copies (see tools/archr-port/README.md).
+# Override with the environment variables GPU_BLOB / GPU_HOOK if you prefer.
+device: rg353v
+soc: rk3566
+firmware: arch-r
+base_firmware: darkos
+base_version: latest
+rootfs_port: tools/archr-port/apply.sh
+gpu_blob: /home/souhail/Andr36oid/rg353v-backup/gpu/libmali-bifrost-g52-g24p0-wayland-gbm.so
+gpu_hook: /home/souhail/Andr36oid/rg353v-backup/gpu/libmali-hook-g24p0.so.1.9.0
