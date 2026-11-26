@@ -73,10 +73,21 @@ B="$R/usr/lib"
 cp -f "$GPU_BLOB" "$B/libmali.so.1.9.0"
 cp -f "$GPU_HOOK" "$B/libmali-hook.so.1.9.0"
 [[ -f "$SHIM_SO" ]] && cp -f "$SHIM_SO" "$B/fchmodat2_compat.so"
+# The PI2 futex shim: glibc >= 2.34 answers pthread_mutexattr_setprotocol
+# (PTHREAD_PRIO_INHERIT) with FUTEX_LOCK_PI2, which only exists from Linux
+# 5.14. On this 5.10 BSP kernel the syscall answers ENOSYS and glibc aborts
+# the process ("The futex facility returned an unexpected error code.").
+# libpulse's threaded mainloop asks for priority inheritance, so every pulse
+# client died: the launcher (SDL2 pulse backend), archr-levels (the volume
+# daemon) and everything else that talks to PipeWire's pulse server.
+[[ -f "$HERE/pi2_compat.so" ]] && cp -f "$HERE/pi2_compat.so" "$B/pi2_compat.so"
 find "$B" -maxdepth 1 -name "libmali*" -exec python3 -c "import os,sys; [os.chmod(p,0o755) for p in sys.argv[1:]]" {} + 2>/dev/null || true
 chmod 0644 "$B/fchmodat2_compat.so" 2>/dev/null || true
-echo "/usr/lib/fchmodat2_compat.so" > "$R/etc/ld.so.preload"
-echo "blob: $(strings -a "$B/libmali.so.1.9.0" | grep -m1 'Bifrost-')  + fchmodat2 shim preloaded"
+chmod 0644 "$B/pi2_compat.so" 2>/dev/null || true
+{ echo "/usr/lib/fchmodat2_compat.so"
+  [[ -f "$B/pi2_compat.so" ]] && echo "/usr/lib/pi2_compat.so"
+} > "$R/etc/ld.so.preload"
+echo "blob: $(strings -a "$B/libmali.so.1.9.0" | grep -m1 'Bifrost-')  + fchmodat2 + pi2 shims preloaded"
 
 say "3b/10 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewire-pulse)"
 sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' \
