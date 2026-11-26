@@ -9,7 +9,32 @@ be compacted and work resumed from this file alone. Mirrored in the device repos
 
 ---
 
-## Session recap — 2026-11-21 (latest)
+## Session recap — 2026-11-26 (latest)
+
+### Arch-R RG353V patcher/flasher tool (Phase 1)
+- **Built** `archr-patcher/` — a reusable tool that downloads the latest
+  Arch-R release, patches it for the RG353V, and produces an SD-ready image.
+  It uses the **dArkOS image as the base** (boot chain p1/p2 + p3 kernel/DTB/
+  initramfs) and replaces only **p4 (rootfs)** with the ported Arch-R rootfs.
+- **Interface:** `fetch` / `patch` / `flash` subcommands; YAML device profiles
+  (`profiles/rg353v.yaml`).
+- **Offline tests passing** (`archr-patcher/tests/test_patch.py`, 4 tests) —
+  synthetic MBR + GPT images, port/resize mocked.
+- **Studied** the dArkOS 5.10.226 kernel + boot chain (`27-darkos-kernel-study.md`)
+  and the TurboRelic mainline 6.15 BSP (`28-turborelic-bsp-study.md`) — the
+  reference for the later PanVK/Vulkan + mainline-kernel phase.
+- **Not yet verified on hardware:** the full patch → flash → boot cycle. The
+  port itself is proven (`tools/archr-port/`); the patcher's image assembly
+  (resize + write to p4) needs a hardware test.
+- **Next (Phase 2):** PanVK Vulkan for Mali-G52, TurboRelic mainline kernel,
+  and the RG405V GarlicOS profile.
+
+### Repos pushed
+`rg353v-internals` (27–29, `archr-patcher/`), `archr-patcher` tool.
+
+---
+
+## Session recap — 2026-11-21
 
 **Full resume sheet: `rg353v-internals/HANDOFF-2026-11-21.md`.**
 

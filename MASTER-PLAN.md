@@ -46,7 +46,7 @@ projects:
 | Android goal | newest **feasible** Android (11 now → 12/13 research) | 12 stable (GammaOS); 13/14 experiment only | **GammaOS Next 13/14** + andr36oid layer |
 | Linux goal | shared **andr36oid Linux** core (port device) | **same core**, RK3566 patched | investigate only (no mainline T618 support) |
 | Use case | light, ultra-portable; streaming + retro | daily driver; PS2/GC/Wii-class + Android apps | most powerful; Android + high-end emulation |
-| Status | Android feature-complete; OS-card rebuild pending | Android optimized; ROCKNIX analyzed; Linux not flashed | **recon complete** (Android 12 V1.23, T618, 116.5 GB eMMC, 128 GB ROM card); GammaOS Next plan ready |
+| Status | Android feature-complete; OS-card rebuild pending | Android optimized; ROCKNIX analyzed; **Arch-R patcher tool built** (`archr-patcher/`, offline tests passing); Linux not flashed | **recon complete** (Android 12 V1.23, T618, 116.5 GB eMMC, 128 GB ROM card); GammaOS Next plan ready |
 
 **Verified notes**
 
@@ -164,6 +164,10 @@ Only sysfs paths and package names change per SoC.
 - Port the andr36oid L3 layer (gamemode/janitor/Tailscale/Moonlight/input).
 - Optional: Android 13/14 GSI experiment on a backed-up eMMC (only if a
   rollback path is proven).
+- **Arch-R track (parallel):** `archr-patcher/` tool built (2026-11-26) —
+  downloads the latest Arch-R release, patches it for the RG353V (dArkOS base
+  + ported rootfs), and produces an SD-ready image. Offline tests passing;
+  hardware verification pending. See `29-archr-patcher.md`.
 - Acceptance: TF1 Linux + eMMC Android + TF2 ROMs; PS2 via ARMSX2; Android
   tweaks at parity.
 
