@@ -1,0 +1,15 @@
+[Unit]
+Description=Point roms2 at the TF2 card's ROM folders (ArkOS layout on this card)
+After=archr-automount.service
+Requires=archr-automount.service
+ConditionPathExists=/storage/games-external
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/rg353v-roms2.sh
+# the launcher reads the link when it builds its index
+ExecStartPost=/bin/sh -c 'systemctl try-restart archr-launcher-session.service || true'
+
+[Install]
+WantedBy=multi-user.target

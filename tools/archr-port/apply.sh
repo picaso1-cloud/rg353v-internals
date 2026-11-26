@@ -189,6 +189,16 @@ EOF
 # (eMMC skipped via the mmcblk0boot0 guard) and publishes /run/archr/roms2.
 # BIOS is shared by symlink, no copies.
 ln -sfn /storage/games-external/bios "$R/storage/bios"
+# The card's ROM folders: ARCH-R publishes roms2 -> <card>/roms, but this TF2
+# card carries the ArkOS layout (psx/, snes/, gba/... at the card root next
+# to bios/ and AnberNext/). A unit picks the right one after the automount.
+mkdir -p "$R/usr/local/bin" "$R/etc/systemd/system"
+cp -f "$HERE/rootfs/usr/local/bin/rg353v-roms2.sh" "$R/usr/local/bin/rg353v-roms2.sh"
+chmod 0755 "$R/usr/local/bin/rg353v-roms2.sh" 2>/dev/null || true
+cp -f "$HERE/rootfs/etc/systemd/system/rg353v-roms2.service" \
+      "$R/etc/systemd/system/rg353v-roms2.service"
+ln -sf /etc/systemd/system/rg353v-roms2.service \
+       "$R/etc/systemd/system/multi-user.target.wants/rg353v-roms2.service"
 
 say "7/10 storage: /storage on the rootfs, not the 137 MB ROMS partition"
 sed -i -E 's|^([^#].*[[:space:]]/storage[[:space:]].*)$|# disabled for ArchR (rootfs /storage used): \1|' "$R/etc/fstab"
