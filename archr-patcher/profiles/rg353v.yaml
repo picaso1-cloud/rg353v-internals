@@ -19,5 +19,5 @@ firmware: arch-r
 base_firmware: darkos
 base_version: latest
 rootfs_port: tools/archr-port/apply.sh
-gpu_blob: /home/souhail/Anbernic/downloads/darkos-rg353v/gpu/libmali-bifrost-g52-g29p1.so
-gpu_hook: /home/souhail/Anbernic/downloads/darkos-rg353v/gpu/libmali-hook.so.1.9.0
+gpu_blob: /home/souhail/Andr36oid/rg353v-backup/gpu/libmali-bifrost-g52-g24p0-wayland-gbm.so
+gpu_hook: /home/souhail/Andr36oid/rg353v-backup/gpu/libmali-hook-g24p0.so.1.9.0
