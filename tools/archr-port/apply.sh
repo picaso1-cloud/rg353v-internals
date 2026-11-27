@@ -208,6 +208,15 @@ ZRAM_SIZE="1536"
 ZRAM_ALGO="zstd"
 SWAP_FILE_SIZE="0"
 EOF
+# PPSSPP: seed the packaged controls/ini so the first PSP launch has the
+# RK3566 mapping (the analog stick's four bindings) instead of PPSSPP's own
+# defaults, which leave the left stick inverted.
+mkdir -p "$R/storage/.config/ppsspp/PSP/SYSTEM"
+cp -f "$R/usr/config/ppsspp/PSP/SYSTEM/controls.ini" \
+      "$R/storage/.config/ppsspp/PSP/SYSTEM/controls.ini" 2>/dev/null || true
+cp -f "$R/usr/config/ppsspp/PSP/SYSTEM/ppsspp.ini" \
+      "$R/storage/.config/ppsspp/PSP/SYSTEM/ppsspp.ini" 2>/dev/null || true
+
 # TF2 ROMs + BIOS: automount mounts the second card at /storage/games-external
 # (eMMC skipped via the mmcblk0boot0 guard) and publishes /run/archr/roms2.
 # BIOS is shared by symlink, no copies.

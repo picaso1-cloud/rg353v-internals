@@ -153,6 +153,21 @@ if [ -f /usr/local/bin/rg353v-touch-mouse.py ] && \
     repair "rg353v-touch-mouse enabled"
 fi
 
+# --- 6c. PPSSPP's controls (the packaged mapping, not PPSSPP's defaults) --
+# start_ppsspp.sh copies /usr/config/ppsspp only when the config dir does not
+# exist yet. When something has created it first (an update, a first run),
+# PPSSPP writes its own defaults: only "An.Left" is bound there, and the
+# analog stick comes out inverted in the PSP. Seed the packaged RK3566
+# mapping when the analog bindings are missing.
+PP=/storage/.config/ppsspp/PSP/SYSTEM/controls.ini
+if [ -f /usr/config/ppsspp/PSP/SYSTEM/controls.ini ] && \
+   { [ ! -f "$PP" ] || ! grep -q '^An\.Up = ' "$PP"; }; then
+    mkdir -p "$(dirname "$PP")"
+    [ -f "$PP" ] && cp -a "$PP" "$PP.pre-port" 2>/dev/null
+    cp -f /usr/config/ppsspp/PSP/SYSTEM/controls.ini "$PP"
+    repair "PPSSPP controls.ini seeded from the packaged mapping"
+fi
+
 # --- 7. the controller mapping and the BIOS link ------------------------
 [ -f /storage/.config/profile.d/098-controller ] || \
     say "  !! missing /storage/.config/profile.d/098-controller"
