@@ -164,10 +164,17 @@ Only sysfs paths and package names change per SoC.
 - Port the andr36oid L3 layer (gamemode/janitor/Tailscale/Moonlight/input).
 - Optional: Android 13/14 GSI experiment on a backed-up eMMC (only if a
   rollback path is proven).
-- **Arch-R track (parallel):** `archr-patcher/` tool built (2026-11-26) —
-  downloads the latest Arch-R release, patches it for the RG353V (dArkOS base
-  + ported rootfs), and produces an SD-ready image. Offline tests passing;
-  hardware verification pending. See `29-archr-patcher.md`.
+- **Arch-R track (parallel): VERIFIED ON HARDWARE (2026-11-27).**
+  `archr-patcher/` builds a complete SD card in one command (Arch-R v3.1.1
+  rootfs on the dArkOS 5.10 base + the boot partition prep). Running on the
+  device: launcher, all buttons, volume, Wi-Fi **with a working Settings
+  page** (iwd), the TF2 ROM card (130 systems), the touch panel as a pointer,
+  suspend/wake. The **updater path is verified** too: a `pacman -Su` installs
+  and the pacman hook re-applies the port's patches (PI2 shim, SDL backend,
+  the game gate, iwd, the touch bridge). Image `downloads/archr-rg353v.img`,
+  sha256 `5aab8587…1c89526`. Known issue: the PSP left stick is inverted
+  (deferred; the deciding test is in PROJECT-STATUS). See
+  `29-archr-patcher.md` and `32-update-regressions-and-fixes.md`.
 - Acceptance: TF1 Linux + eMMC Android + TF2 ROMs; PS2 via ARMSX2; Android
   tweaks at parity.
 
