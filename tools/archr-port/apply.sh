@@ -89,8 +89,12 @@ chmod 0644 "$B/pi2_compat.so" 2>/dev/null || true
 } > "$R/etc/ld.so.preload"
 echo "blob: $(strings -a "$B/libmali.so.1.9.0" | grep -m1 'Bifrost-')  + fchmodat2 + pi2 shims preloaded"
 
-say "3b/10 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewire-pulse)"sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' \
+say "3b/10 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewire-pulse)"
+sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' \
   "$R/usr/bin/archr-launcher-session" 2>/dev/null || true
+# Never ship an image without it: the launcher crash-loops on pulse.
+grep -q '^export SDL_AUDIODRIVER=alsa' "$R/usr/bin/archr-launcher-session" || {
+  echo "!! SDL_AUDIODRIVER patch did not apply" >&2; exit 1; }
 # The game gate: archr-launcher-session makes a FIFO per game with
 # `mkfifo -m 0600`, and coreutils issues the fchmodat2 syscall inline (not
 # through a symbol, so the preload shim cannot catch it). On this 5.10 kernel
@@ -122,6 +126,7 @@ chmod 0644 "$R/etc/pacman.d/hooks/99-rg353v-port.hook" 2>/dev/null || true
 # repairs what a package upgrade took away (the SDL patch, the preload
 # shims, iwd, the controller mapping, the TF2 ROM folders).
 cp -f "$HERE/rootfs/etc/systemd/system/rg353v-port.service" "$R/etc/systemd/system/rg353v-port.service"
+mkdir -p "$R/etc/systemd/system/multi-user.target.wants"
 ln -sf /etc/systemd/system/rg353v-port.service \
        "$R/etc/systemd/system/multi-user.target.wants/rg353v-port.service"
 
@@ -299,9 +304,11 @@ Passphrase=1122334455
 EOF
 chmod 0644 "$IWD_STATE/CPE-C391.psk" "$IWD_STATE/HOME-NETWORK.psk"
 # iwd must run: unmask it (the port masks it further down) and enable it.
-rm -f "$S/iwd.service"
-mkdir -p "$S/multi-user.target.wants"
-ln -sf /usr/lib/systemd/system/iwd.service "$S/multi-user.target.wants/iwd.service"
+# ($S is defined in the systemd step further down, so use the path here.)
+IWD_S="$R/etc/systemd/system"
+rm -f "$IWD_S/iwd.service"
+mkdir -p "$IWD_S/multi-user.target.wants"
+ln -sf /usr/lib/systemd/system/iwd.service "$IWD_S/multi-user.target.wants/iwd.service"
 
 # Merge the RG353V gamepad into es_input.cfg. The image already carries
 # retrogame_joypad entries for older Anbernic boards (same driver, same

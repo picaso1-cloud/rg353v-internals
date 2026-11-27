@@ -50,6 +50,39 @@ device. The full record is `32-update-regressions-and-fixes.md`.
    Verified: libinput `Capabilities: pointer`, sway has a pointer, tap =
    BTN_LEFT + REL_X/REL_Y.
 
+### The image is reproducible again (2026-11-27, final)
+`archr-patcher` builds a complete card in one command, and the image was
+rebuilt + verified offline after every fix above:
+
+```sh
+sudo python3 main.py patch --image ArchR-R36S…original.img --device rg353v \
+     --out archr-rg353v.img --base dArkOS_RG353v_trixie_11072026.img
+sudo python3 main.py flash --image archr-rg353v.img --target /dev/sdX
+```
+
+`downloads/archr-rg353v.img` 8,053,063,680 B,
+sha256 `5aab8587…1c89526`. Verified in the image: SDL_AUDIODRIVER=alsa, the
+gate `chmod`, the hook with 10 `Target` lines, both preload shims, 8 port
+units, 4 port scripts, 8821cs.ko + firmware, iwd's SAE quirk + 2 profiles,
+the PPSSPP mapping, `/storage/bios`, the roms2 unit; p3 has the dual-mode
+initramfs, NORMAL and both DTBs at 25 MHz.
+
+The updater path is verified too: `pacman -Su` installed archr 85 /
+archr-launcher 0bd6f0a / system-utils 15, the hook ran as 6/6 and the doctor
+re-applied both patches.
+
+### Known issue, deferred: the PSP left stick is inverted
+Both axes, in PPSSPP only. The packaged RK3566 `controls.ini` (all four
+analog bindings) is seeded now — PPSSPP had been writing its own defaults
+because `start_ppsspp.sh` only copies `/usr/config/ppsspp` when
+`/storage/.config/ppsspp` does not exist yet. Still inverted after the
+seed, so the leads are: the kernel reports the axes in the opposite sign on
+this unit (RetroArch/dArkOS configs both use the standard `up = -Y`,
+`left = -X`, doc 09 says no invert props are needed) or PPSSPP's SDL axis
+mapping. Deciding test: `evtest /dev/input/event4` while the stick is pushed
+up — ABS_Y negative = kernel fine, PPSSPP to fix; positive = invert the
+four axis entries (RetroArch autoconfig + PPSSPP controls.ini).
+
 ### Two more, found on the first day of real use
 - **Every game quit immediately.** `archr-launcher-session` makes a FIFO per
   game with `mkfifo -m 0600`. coreutils issues the **fchmodat2 syscall
