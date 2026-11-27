@@ -2,16 +2,16 @@
 Operation = Install
 Operation = Upgrade
 Type = Package
-Name = archr
-Name = archr-launcher
-Name = archr-joypad
-Name = autostart
-Name = quirks
-Name = system-utils
-Name = archr-hotkey
-Name = powerstate
-Name = sleep
-Name = retroarch
+Target = archr
+Target = archr-launcher
+Target = archr-joypad
+Target = autostart
+Target = quirks
+Target = system-utils
+Target = archr-hotkey
+Target = powerstate
+Target = sleep
+Target = retroarch
 
 [Action]
 Description = RG353V port: re-apply the patches the packages overwrite

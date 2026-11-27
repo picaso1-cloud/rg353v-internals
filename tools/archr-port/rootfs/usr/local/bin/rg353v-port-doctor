@@ -46,8 +46,21 @@ fi
 # shim cannot catch it: the mkfifo fails and the session exits with status 1,
 # which looks like "every game quits immediately" and lands back on the menu.
 S=/usr/bin/archr-launcher-session
-if [ -f "$S" ] && grep -q 'mkfifo -m 0600 "$gate"' "$S"; then
-    sed -i 's|mkfifo -m 0600 "$gate" && exec 9<>"$gate"|mkfifo "$gate" && chmod 0600 "$gate" && exec 9<>"$gate"|' "$S"
+if [ -f "$S" ] && grep -q 'mkfifo -m 0600' "$S"; then
+    # Rewrite the whole line: a sed replacement with && would expand to the
+    # matched text twice and leave a mangled line behind.
+    python3 - "$S" <<'PY'
+import re, sys
+path = sys.argv[1]
+src = open(path).read()
+fixed = re.sub(
+    r'(?m)^(\s*)mkfifo .*?\$gate.*$',
+    lambda m: m.group(1) + 'mkfifo "$gate" && chmod 0600 "$gate" && exec 9<>"$gate" || exit 1',
+    src,
+)
+if fixed != src:
+    open(path, "w").write(fixed)
+PY
     repair "archr-launcher-session: the game gate uses chmod (fchmodat2 is ENOSYS)"
 fi
 

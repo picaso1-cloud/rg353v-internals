@@ -97,8 +97,18 @@ say "3b/10 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewir
 # that is ENOSYS: the mkfifo fails, the session exits with status 1, and every
 # game "quits immediately" back to the menu. chmod() works (the shim has
 # fchmodat), so set the mode with it.
-sed -i 's|mkfifo -m 0600 "$gate" \&\& exec 9<>"$gate"|mkfifo "$gate" \&\& chmod 0600 "$gate" \&\& exec 9<>"$gate"|' \
-  "$R/usr/bin/archr-launcher-session" 2>/dev/null || true
+python3 - "$R/usr/bin/archr-launcher-session" <<'PY'
+import re, sys
+path = sys.argv[1]
+src = open(path).read()
+fixed = re.sub(
+    r'(?m)^(\s*)mkfifo .*?\$gate.*$',
+    lambda m: m.group(1) + 'mkfifo "$gate" && chmod 0600 "$gate" && exec 9<>"$gate" || exit 1',
+    src,
+)
+if fixed != src:
+    open(path, "w").write(fixed)
+PY
 # The patch above lives in a file the archr-launcher package owns: every
 # package upgrade puts the upstream file back and the launcher then dies with
 # "The futex facility returned an unexpected error code." A pacman hook
