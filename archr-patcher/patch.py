@@ -122,7 +122,7 @@ def load_profile(profile):
         return yaml.safe_load(f)
 
 
-def patch(image, profile, out, base=None):
+def patch(image, profile, out, base=None, prepare=True):
     """Apply the profile to the Arch-R image. Returns the output path.
 
     ``image`` is the Arch-R image. ``profile`` is the profile path (or a device
@@ -175,4 +175,21 @@ def patch(image, profile, out, base=None):
 
     # 8. Clean up.
     os.remove(rootfs_file)
+
+    # 9. Prepare the boot partition: the RG353V's dual-mode initramfs (the
+    #    dArkOS one is btrfs-only and the Arch-R rootfs is ext4) and the
+    #    Wi-Fi SDIO bus capped to 25 MHz (TurboRelic's fix: the board's SDIO
+    #    signal integrity breaks above 25 MHz and the probe hangs the kernel).
+    if prepare:
+        prepare_boot(out, repo_root)
+
     return out
+
+
+def prepare_boot(image, repo_root=None):
+    """Inject the initramfs and patch the DTB in the image's boot partition."""
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prepare-boot.sh")
+    if not os.path.exists(script):
+        print("prepare-boot.sh not found, skipping the boot partition prep")
+        return
+    subprocess.run(["bash", script, image], check=True)

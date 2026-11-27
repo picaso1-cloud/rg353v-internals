@@ -4,12 +4,16 @@ Operation = Upgrade
 Type = Package
 Name = archr
 Name = archr-launcher
+Name = archr-joypad
 Name = autostart
 Name = quirks
 Name = system-utils
-Name = archr-joypad
+Name = archr-hotkey
+Name = powerstate
+Name = sleep
+Name = retroarch
 
 [Action]
 Description = RG353V port: re-apply the patches the packages overwrite
 When = PostTransaction
-Exec = /usr/local/bin/rg353v-port-hooks
+Exec = /usr/local/bin/rg353v-port-doctor

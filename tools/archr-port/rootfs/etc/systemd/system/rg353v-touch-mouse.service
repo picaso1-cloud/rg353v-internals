@@ -1,0 +1,13 @@
+[Unit]
+Description=The RG353V touch panel as a pointer (uinput bridge)
+After=multi-user.target
+ConditionPathExists=/usr/local/bin/rg353v-touch-mouse.py
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/rg353v-touch-mouse.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

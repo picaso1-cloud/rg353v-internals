@@ -89,18 +89,23 @@ chmod 0644 "$B/pi2_compat.so" 2>/dev/null || true
 } > "$R/etc/ld.so.preload"
 echo "blob: $(strings -a "$B/libmali.so.1.9.0" | grep -m1 'Bifrost-')  + fchmodat2 + pi2 shims preloaded"
 
-say "3b/10 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewire-pulse)"
-sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' \
+say "3b/10 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewire-pulse)"sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' \
   "$R/usr/bin/archr-launcher-session" 2>/dev/null || true
 # The patch above lives in a file the archr-launcher package owns: every
 # package upgrade puts the upstream file back and the launcher then dies with
 # "The futex facility returned an unexpected error code." A pacman hook
 # re-applies it (and the rewrite_config fix) after every transaction.
 mkdir -p "$R/usr/local/bin" "$R/etc/pacman.d/hooks"
-cp -f "$HERE/rootfs/usr/local/bin/rg353v-port-hooks" "$R/usr/local/bin/rg353v-port-hooks"
+cp -f "$HERE/rootfs/usr/local/bin/rg353v-port-doctor" "$R/usr/local/bin/rg353v-port-doctor"
 cp -f "$HERE/rootfs/etc/pacman.d/hooks/99-rg353v-port.hook" "$R/etc/pacman.d/hooks/99-rg353v-port.hook"
-chmod 0755 "$R/usr/local/bin/rg353v-port-hooks" 2>/dev/null || true
+chmod 0755 "$R/usr/local/bin/rg353v-port-doctor" 2>/dev/null || true
 chmod 0644 "$R/etc/pacman.d/hooks/99-rg353v-port.hook" 2>/dev/null || true
+# The doctor also runs at every boot: it checks the port is intact and
+# repairs what a package upgrade took away (the SDL patch, the preload
+# shims, iwd, the controller mapping, the TF2 ROM folders).
+cp -f "$HERE/rootfs/etc/systemd/system/rg353v-port.service" "$R/etc/systemd/system/rg353v-port.service"
+ln -sf /etc/systemd/system/rg353v-port.service \
+       "$R/etc/systemd/system/multi-user.target.wants/rg353v-port.service"
 
 say "4/10 Wi-Fi: iwd + udhcpc (the launcher speaks iwd), wpa_supplicant as fallback, wifi.enabled=1"
 rm -f "$R/storage/.cache/rfkill/"* 2>/dev/null || true
@@ -375,6 +380,21 @@ ln -sf /usr/lib/systemd/system/archr.target "$S/default.target"
 rm -f "$S/multi-user.target.wants/s2-console.service"
 rm -f "$S/getty.target.wants/getty@tty1.service"
 ln -sf /usr/lib/systemd/system/getty@.service "$S/getty.target.wants/getty@tty2.service"
+
+say "8b/10 touch: the cst3xx panel as a pointer (uinput bridge)"
+# The panel is a pure touch device: libinput/sway give the seat no pointer, so
+# the launcher cannot be tapped and the emulators that take a mouse (Draxcast,
+# melonDS through RetroArch's touchscreen driver) never see the finger.
+# The vendor 5.10 kernel ignores the abs ranges of struct uinput_user_dev (a
+# virtual absolute device comes out 0..0 and libinput drops it), so the bridge
+# emits a relative pointer: the cursor follows the finger, a tap is a click.
+cp -f "$HERE/rootfs/usr/local/bin/rg353v-touch-mouse.py" "$R/usr/local/bin/rg353v-touch-mouse.py"
+cp -f "$HERE/rootfs/etc/systemd/system/rg353v-touch-mouse.service" \
+      "$R/etc/systemd/system/rg353v-touch-mouse.service"
+chmod 0755 "$R/usr/local/bin/rg353v-touch-mouse.py" 2>/dev/null || true
+mkdir -p "$R/etc/systemd/system/multi-user.target.wants"
+ln -sf /etc/systemd/system/rg353v-touch-mouse.service \
+       "$R/etc/systemd/system/multi-user.target.wants/rg353v-touch-mouse.service"
 
 say "9/10 kernel overlays: the dArkOS 5.10 modules and firmware"
 # The Arch-R image is an RK3326 one: /usr/lib/modules and /usr/lib/firmware are

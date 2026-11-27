@@ -1,0 +1,136 @@
+#!/bin/bash
+# RG353V port doctor: check that the port is intact and repair what an
+# Arch-R package upgrade took away.
+#
+# The archr, archr-launcher, archr-joypad, autostart, quirks and system-utils
+# packages own files the port touches, so an upgrade puts the upstream
+# versions back. This runs from a pacman hook (99-rg353v-port.hook) after
+# every transaction that touches them, and can be run by hand:
+#
+#   sudo /usr/local/bin/rg353v-port-doctor
+#
+# Everything it repairs is either a file the port owns (not package owned) or
+# a one-line patch of a package owned file.
+set -u
+
+LOG=/tmp/rg353v-port-doctor.log
+FIXED=0
+
+say() {
+    echo "$*" >>"$LOG"
+}
+
+repair() {
+    # repair <what> <command...>
+    local what="$1"; shift
+    say "  fixed: $what"
+    FIXED=$((FIXED + 1))
+}
+
+{
+echo "=== rg353v-port-doctor $(date -u) ==="
+
+# --- 1. the SDL audio backend -------------------------------------------
+# The SDL2 pulse backend aborts with pipewire-pulse on this kernel
+# ("The futex facility returned an unexpected error code."): the launcher
+# draws one frame and dies, and the screen stays black.
+S=/usr/bin/archr-launcher-session
+if [ -f "$S" ] && grep -q "^export SDL_AUDIODRIVER=pulseaudio" "$S"; then
+    sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' "$S"
+    repair "SDL_AUDIODRIVER=alsa in $S"
+fi
+
+# --- 2. the rewrite_config fix (chmod -> fchmodat2 -> ENOSYS on 5.10) ---
+F=/etc/profile.d/001-functions
+APPEND=/usr/lib/autostart/quirks/platforms/RK3566/001-functions.rg353v-append
+if [ -f "$F" ] && [ -f "$APPEND" ] && ! grep -q "RG353V patch" "$F"; then
+    cat "$APPEND" >>"$F"
+    repair "rewrite_config fix re-applied to $F"
+fi
+
+# --- 3. the preload shims ------------------------------------------------
+# pi2_compat: libpulse asks for PTHREAD_PRIO_INHERIT and glibc answers with
+# FUTEX_LOCK_PI2, a syscall that needs Linux 5.14 (this kernel is 5.10):
+# every pulse client aborts without it.
+# fchmodat2_compat: coreutils' chmod uses fchmodat2 (Linux 6.6+).
+for shim in pi2_compat.so fchmodat2_compat.so; do
+    if [ ! -f "/usr/lib/$shim" ]; then
+        say "  !! /usr/lib/$shim is missing (the image is incomplete)"
+        continue
+    fi
+    grep -q "/usr/lib/$shim" /etc/ld.so.preload 2>/dev/null || {
+        echo "/usr/lib/$shim" >> /etc/ld.so.preload
+        repair "/usr/lib/$shim added to /etc/ld.so.preload"
+    }
+done
+
+# --- 4. the port's quirks and units -------------------------------------
+# These live in folders the packages do not own, but a package upgrade that
+# removes a file can take them with it.
+for p in /usr/lib/autostart/quirks/platforms/RK3566 \
+         "/usr/lib/autostart/quirks/devices/Anbernic RG353V-VS"; do
+    [ -d "$p" ] || say "  !! missing: $p"
+done
+for u in rg353v-kernel-overlays.service rg353v-wifi-driver.service \
+         rg353v-roms2.service rg353v-storage-bind.service rg353v-flightrec.service; do
+    [ -f "/etc/systemd/system/$u" ] || say "  !! missing unit: $u"
+done
+
+# --- 5. iwd owns the Wi-Fi (the launcher's Settings page speaks iwd) -----
+if [ -L /etc/systemd/system/iwd.service ]; then
+    rm -f /etc/systemd/system/iwd.service
+    repair "iwd unmasked"
+fi
+if [ ! -e /etc/systemd/system/multi-user.target.wants/iwd.service ]; then
+    mkdir -p /etc/systemd/system/multi-user.target.wants
+    ln -sf /usr/lib/systemd/system/iwd.service \
+           /etc/systemd/system/multi-user.target.wants/iwd.service
+    repair "iwd enabled"
+fi
+# wpa_supplicant is the fallback only: two managers on one interface fight
+if [ -e /etc/systemd/system/multi-user.target.wants/wpa-wlan0.service ]; then
+    rm -f /etc/systemd/system/multi-user.target.wants/wpa-wlan0.service
+    repair "wpa-wlan0 disabled (iwd is in charge)"
+fi
+if [ -f /etc/systemd/system/dhcp-wlan0.service ] && \
+   grep -q "^Wants=wpa-wlan0.service" /etc/systemd/system/dhcp-wlan0.service; then
+    sed -i 's|^Wants=wpa-wlan0.service|# (iwd owns wlan0)|; s|^After=wpa-wlan0.service|After=iwd.service|' \
+           /etc/systemd/system/dhcp-wlan0.service
+    repair "dhcp-wlan0 waits for iwd"
+fi
+
+# --- 6. the provisioned networks ----------------------------------------
+# /var/lib/iwd is a symlink into /storage (the FHS bridge): the .psk files
+# have to live in the target or they are lost.
+for n in CPE-C391 HOME-NETWORK; do
+    if [ ! -f "/storage/.cache/iwd/$n.psk" ]; then
+        say "  !! no /storage/.cache/iwd/$n.psk (the network is not provisioned)"
+    fi
+done
+
+# --- 6b. the touch panel bridge -----------------------------------------
+# The launcher and the emulators need a pointer; without the bridge the panel
+# stays a touch-only device and nothing on screen can be tapped.
+if [ -f /usr/local/bin/rg353v-touch-mouse.py ] && \
+   [ ! -e /etc/systemd/system/multi-user.target.wants/rg353v-touch-mouse.service ]; then
+    mkdir -p /etc/systemd/system/multi-user.target.wants
+    ln -sf /etc/systemd/system/rg353v-touch-mouse.service \
+           /etc/systemd/system/multi-user.target.wants/rg353v-touch-mouse.service
+    repair "rg353v-touch-mouse enabled"
+fi
+
+# --- 7. the controller mapping and the BIOS link ------------------------
+[ -f /storage/.config/profile.d/098-controller ] || \
+    say "  !! missing /storage/.config/profile.d/098-controller"
+[ -L /storage/bios ] || {
+    ln -sfn /storage/games-external/bios /storage/bios
+    repair "/storage/bios -> the TF2 card's bios"
+}
+
+# --- 8. the TF2 card's ROM folders (ArkOS layout) -----------------------
+[ -x /usr/local/bin/rg353v-roms2.sh ] && /usr/local/bin/rg353v-roms2.sh
+
+echo "  done ($FIXED repair(s))"
+} >>"$LOG" 2>&1
+
+exit 0

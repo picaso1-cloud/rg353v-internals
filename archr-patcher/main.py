@@ -34,6 +34,16 @@ def main():
     p_patch.add_argument("--device", required=True)
     p_patch.add_argument("--out", required=True)
     p_patch.add_argument("--base", default=None, help="dArkOS base image path")
+    p_patch.add_argument(
+        "--no-prepare-boot",
+        action="store_true",
+        help="skip the boot partition prep (initramfs + the 25 MHz SDIO cap)",
+    )
+
+    p_prepare = sub.add_parser(
+        "prepare", help="Only prepare the boot partition of an image"
+    )
+    p_prepare.add_argument("--image", required=True)
 
     p_flash = sub.add_parser("flash", help="Flash the image to a target device")
     p_flash.add_argument("--image", required=True)
@@ -46,8 +56,17 @@ def main():
         print(f"fetched: {out}")
     elif args.command == "patch":
         profile = os.path.join(HERE, "profiles", f"{args.device}.yaml")
-        out = patch.patch(args.image, profile, args.out, base=args.base)
+        out = patch.patch(
+            args.image,
+            profile,
+            args.out,
+            base=args.base,
+            prepare=not args.no_prepare_boot,
+        )
         print(f"patched: {out}")
+    elif args.command == "prepare":
+        patch.prepare_boot(args.image)
+        print(f"prepared: {args.image}")
     elif args.command == "flash":
         flash.flash(args.image, args.target)
         print(f"flashed: {args.target}")

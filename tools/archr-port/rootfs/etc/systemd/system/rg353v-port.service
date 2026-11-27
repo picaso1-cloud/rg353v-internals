@@ -1,0 +1,12 @@
+[Unit]
+Description=RG353V port: check the port is intact and repair what a package upgrade took away
+After=archr-automount.service
+Requires=archr-automount.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/rg353v-port-doctor
+
+[Install]
+WantedBy=multi-user.target
