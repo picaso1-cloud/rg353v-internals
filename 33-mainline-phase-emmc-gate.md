@@ -104,3 +104,47 @@ verified to contain "RKNS" at 32 KiB.
   with no serial console and no network yet. Mitigation: the eMMC backup +
   Maskrom, and step 1 proves the card is readable.
 - The test card is counterfeit: fine for a 2–20 GB test, not for a library.
+
+---
+
+## What the first real attempt taught us (2026-11-27, later)
+
+**1. The Arch-R card does NOT need the eMMC.** Zeroing the eMMC's SPL did not
+stop the Arch-R card from booting: the dArkOS base image carries its **own**
+Rockchip boot chain in the first 16 MiB (idbloader + u-boot), so the BootROM
+boots it directly. That makes the running Arch-R system — or the live
+initramfs — a **recovery Linux** that can write the eMMC back over SSH:
+
+```sh
+ssh root@<device> 'dd of=/dev/mmcblk0 bs=1M conv=fsync' < emmc-first16MiB-*.img
+```
+
+This is what actually restored the device, and it is a better net than
+Maskrom.
+
+**2. The ROCKNIX card was not picked up: the fake card is the reason.** With
+the eMMC's SPL zeroed the BootROM went straight to **Maskrom**, not to the
+card. The card's SPL at 32 KiB was verified on the laptop, so the remaining
+explanation is the counterfeit card failing the BootROM's read (it enumerates
+fine over USB, which is why it looked healthy). A genuine card is required
+for the mainline test.
+
+**3. Maskrom works, but not with our loader path.**
+`rkdeveloptool ld` sees `2207:350a Maskrom`; every storage command fails
+(`td`, `rl`, `wl` = AMO errors) and `db` hung / "Downloading bootloader
+failed". `db` needs a **BOOT/LDR-format MiniLoaderAll** (tag `0x544F4F42`),
+not the RKNS idblock; one was built from rkbin
+(`boot_merger RK3566MINIALL.ini` → `rk356x_loader_v1.26.114.bin`, magic
+`LDR `), which the tool then **accepted** — the download itself failed. That
+points at the USB data path (cable/port), so: a known-good data cable and a
+direct laptop port before relying on Maskrom. Not needed for this recovery,
+because of point 1.
+
+**4. The dual-boot question.** The stock chain boots Android + the
+ArkOS/dArkOS FIT and rejects mainline. A **mainline u-boot** (≥2025.01, with
+the Anbernic RGxx3 support: ADC board detect RG353V=695, DSI panel probe)
+boots a mainline kernel from the SD **and** Android's `boot` partition
+(`boot_android`; the unit is `verifiedbootstate=orange`, so AVB is not a
+wall), and can present a menu. That is the "latest kernels + Android at once"
+chain, written into the same 16 MiB boot area — still reversible with the
+backup, and with the Arch-R card always available as the recovery Linux.
