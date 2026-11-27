@@ -40,6 +40,27 @@ if [ -f "$S" ] && grep -q "^export SDL_AUDIODRIVER=pulseaudio" "$S"; then
     repair "SDL_AUDIODRIVER=alsa in $S"
 fi
 
+# --- 1b. the launcher's game gate (mkfifo -m -> fchmodat2 -> ENOSYS) ----
+# archr-launcher-session makes a FIFO per game with `mkfifo -m 0600`; coreutils
+# issues the fchmodat2 syscall inline (not through a symbol), so the preload
+# shim cannot catch it: the mkfifo fails and the session exits with status 1,
+# which looks like "every game quits immediately" and lands back on the menu.
+S=/usr/bin/archr-launcher-session
+if [ -f "$S" ] && grep -q 'mkfifo -m 0600 "$gate"' "$S"; then
+    sed -i 's|mkfifo -m 0600 "$gate" && exec 9<>"$gate"|mkfifo "$gate" && chmod 0600 "$gate" && exec 9<>"$gate"|' "$S"
+    repair "archr-launcher-session: the game gate uses chmod (fchmodat2 is ENOSYS)"
+fi
+
+# --- 1c. Wi-Fi power save off (the RTL8821CS drops links with it on) ----
+if [ ! -e /etc/systemd/system/multi-user.target.wants/rg353v-wifi-powersave.service ]; then
+    if [ -f /etc/systemd/system/rg353v-wifi-powersave.service ]; then
+        mkdir -p /etc/systemd/system/multi-user.target.wants
+        ln -sf /etc/systemd/system/rg353v-wifi-powersave.service \
+               /etc/systemd/system/multi-user.target.wants/rg353v-wifi-powersave.service
+        repair "rg353v-wifi-powersave enabled"
+    fi
+fi
+
 # --- 2. the rewrite_config fix (chmod -> fchmodat2 -> ENOSYS on 5.10) ---
 F=/etc/profile.d/001-functions
 APPEND=/usr/lib/autostart/quirks/platforms/RK3566/001-functions.rg353v-append

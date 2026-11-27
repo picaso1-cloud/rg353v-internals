@@ -91,6 +91,14 @@ echo "blob: $(strings -a "$B/libmali.so.1.9.0" | grep -m1 'Bifrost-')  + fchmoda
 
 say "3b/10 audio: SDL apps must use ALSA (SDL2 pulse backend aborts with pipewire-pulse)"sed -i 's/export SDL_AUDIODRIVER=pulseaudio/export SDL_AUDIODRIVER=alsa/' \
   "$R/usr/bin/archr-launcher-session" 2>/dev/null || true
+# The game gate: archr-launcher-session makes a FIFO per game with
+# `mkfifo -m 0600`, and coreutils issues the fchmodat2 syscall inline (not
+# through a symbol, so the preload shim cannot catch it). On this 5.10 kernel
+# that is ENOSYS: the mkfifo fails, the session exits with status 1, and every
+# game "quits immediately" back to the menu. chmod() works (the shim has
+# fchmodat), so set the mode with it.
+sed -i 's|mkfifo -m 0600 "$gate" \&\& exec 9<>"$gate"|mkfifo "$gate" \&\& chmod 0600 "$gate" \&\& exec 9<>"$gate"|' \
+  "$R/usr/bin/archr-launcher-session" 2>/dev/null || true
 # The patch above lives in a file the archr-launcher package owns: every
 # package upgrade puts the upstream file back and the launcher then dies with
 # "The futex facility returned an unexpected error code." A pacman hook
@@ -395,6 +403,13 @@ chmod 0755 "$R/usr/local/bin/rg353v-touch-mouse.py" 2>/dev/null || true
 mkdir -p "$R/etc/systemd/system/multi-user.target.wants"
 ln -sf /etc/systemd/system/rg353v-touch-mouse.service \
        "$R/etc/systemd/system/multi-user.target.wants/rg353v-touch-mouse.service"
+
+# Wi-Fi power save: on, this SDIO combo chip drops the link every ~30 s and
+# the Settings page is left on "connecting".
+cp -f "$HERE/rootfs/etc/systemd/system/rg353v-wifi-powersave.service" \
+      "$R/etc/systemd/system/rg353v-wifi-powersave.service"
+ln -sf /etc/systemd/system/rg353v-wifi-powersave.service \
+       "$R/etc/systemd/system/multi-user.target.wants/rg353v-wifi-powersave.service"
 
 say "9/10 kernel overlays: the dArkOS 5.10 modules and firmware"
 # The Arch-R image is an RK3326 one: /usr/lib/modules and /usr/lib/firmware are

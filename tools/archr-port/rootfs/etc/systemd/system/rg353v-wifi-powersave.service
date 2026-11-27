@@ -1,0 +1,15 @@
+[Unit]
+Description=Wi-Fi power save off (the RTL8821CS drops links with it on)
+After=iwd.service
+Requires=iwd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# iwd brings wlan0 up; the driver's default is power save on, which makes
+# this SDIO combo chip drop the link (connected -> autoconnect every ~30 s,
+# and the launcher's Settings page is left on "connecting").
+ExecStart=/bin/sh -c 'for i in $(seq 1 30); do [ -e /sys/class/net/wlan0 ] && break; sleep 1; done; iw dev wlan0 set power_save off || true'
+
+[Install]
+WantedBy=multi-user.target
