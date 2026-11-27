@@ -9,7 +9,58 @@ be compacted and work resumed from this file alone. Mirrored in the device repos
 
 ---
 
-## Session recap — 2026-11-27 (latest)
+## Session recap — 2026-11-27 (evening) — MAINLINE + DUAL-BOOT WORKING
+
+**The mainline phase is unblocked and validated on the RG353V.** ROCKNIX
+20261101 (kernel **7.2.11**) boots from TF1 with the **eMMC Android left
+installed and bootable**; card out → Android. The eMMC boot chain was patched
+so it hands off to the card's extlinux, and the v2 panel was fixed. Full
+records: `34-emmc-dualboot-chain.md`, `35-rg353v-panel-v2-fix.md`,
+`36-rocknix-mainline-validation.md`; tool: `tools/emmc-chain/`.
+
+### The boot-chain answer (why the wiki says "wipe Android")
+- The BootROM is **eMMC-first**: the card's own u-boot never runs while Android
+  is installed. Proof: replacing the card's own `bootcmd` with `reset` still
+  booted Android.
+- The stock eMMC u-boot FIT (8 MiB, duplicate at 10 MiB, uncompressed, sha256
+  per image, no signature) has a **5 467-byte default `bootcmd`** at
+  `0xbfc50`. It was replaced (same length + hash records recomputed) with:
+  *find `/extlinux/extlinux.conf` on TF1 p3 → write marker → set
+  `kernel_addr_r=0x2000000` → `sysboot` → marker → fall back to
+  `boot_fit; boot_android mmc 0`*.
+- Two traps found on the way: this u-boot needs a **leading `/`** in
+  `test -e mmc 1:3 …`, and `rkimgtest` checks **LBA 64 (RKNS)**, not a
+  "resource partition".
+- Reversible: the 16 MiB eMMC backup restores everything; Android data was
+  never touched.
+
+### The display answer
+- The DTB shipped the **v1** panel (`newvision,nv3051d`); this unit is **v2**
+  (`anbernic,rg353v-panel-v2` → `panel-sitronix-st7703`). One `fdtput` on
+  `/flash/device_trees/rk3566-anbernic-rg353v.dtb` fixed it (original kept as
+  `.orig`). The image also shipped the wrong DTB in extlinux
+  (`powkiddy-x55` → `anbernic-rg353v`).
+- The flicker/"shadow" that followed was **not** the driver (Android did it
+  too, PWM is 40 kHz, no DSI errors): a long power-off + charge cleared it.
+
+### GPU validated
+- `gpu.driver=panfrost` → Panfrost binds (`Mali-G52 r1 MC1`), GLES 3.1 Mesa
+  26.2.4; `glmark2` **613**.
+- PanVK (Vulkan 1.0.354) works behind `PAN_I_WANT_A_BROKEN_VULKAN_DRIVER=1`
+  (`vkmark` **628**); `mali.json` is a 0-byte file in panfrost mode.
+- SSH/Wi-Fi were disabled by settings (`ssh.enabled=0`, `wifi.enabled=0`) —
+  enabling them in `system.cfg` (plus the `sshd.conf` `SSH_ARGS` file and the
+  `/storage/.cache/ssh` host keys) is the persistent fix.
+
+### Open
+- A/B benchmark libmali vs panfrost; a real dual-boot selector (button or
+  marker) instead of card presence; the ARCH-R-userland-on-7.2 "merge"
+  decision; package the chain patch (done) and document the panel/boot
+  work upstream (ROCKNIX quirks).
+
+---
+
+## Session recap — 2026-11-27 (day) — Arch-R verified
 
 **The image boots on hardware and works.** Buttons, volume, Wi-Fi (with the
 Settings page), the TF2 ROM card and the touch panel are all verified on the

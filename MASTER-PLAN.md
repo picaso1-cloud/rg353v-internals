@@ -160,7 +160,17 @@ Only sysfs paths and package names change per SoC.
   charging, input, panel, emulation, streaming all work.
 
 ### Phase 2 — RG353V (same core, patched)
-- Flash ROCKNIX Generic to **TF1** (Android stays on eMMC, ROMs on TF2).
+- ✅ **The boot-chain gate is solved (2026-11-27, evening).** The eMMC u-boot's
+  compiled-in `bootcmd` was replaced (FIT env patch, same length, sha256
+  records recomputed) so it boots `/extlinux/extlinux.conf` from TF1 and only
+  then falls back to Android. Card out → Android, unchanged; no Android
+  partition was ever wiped. ROCKNIX 20261101 (kernel **7.2.11**) boots this
+  way. See `34-emmc-dualboot-chain.md` and `tools/emmc-chain/`.
+- ✅ **Panel v2 fixed** (`anbernic,rg353v-panel-v2` → `panel-sitronix-st7703`)
+  and **Panfrost/PanVK validated** (`glmark2` **613**, `vkmark` **628**) —
+  see `35-rg353v-panel-v2-fix.md`, `36-rocknix-mainline-validation.md`.
+- TF1 Linux + eMMC Android + TF2 ROMs; next: a selector (hold a button or a
+  marker file) instead of "card presence", and the libmali-vs-panfrost A/B.
 - Port the andr36oid L3 layer (gamemode/janitor/Tailscale/Moonlight/input).
 - Optional: Android 13/14 GSI experiment on a backed-up eMMC (only if a
   rollback path is proven).

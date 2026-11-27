@@ -40,9 +40,12 @@ Evidence legend: **[seen]** observed here · **[inferred]** reasoned/public ·
 | H8 | Stick clicks emit BTN_THUMBL/THUMBR (317/318) after the fix | RGB10 Max 2 | [seen] | `04-input.md` |
 | H9 | Mouse mode = **Select+Start**; pointer = right stick; props `pointer_stick=right`, `invert_ry=false`, `pointer_invert_x=false` | RGB10 Max 2 | [seen] | `04-input.md` |
 | H10 | RG353V panel variants: ID `0x3052` = v1 (`anbernic,rg353p-panel` + `newvision,nv3051d`), `0x3821` = v2 (`anbernic,rg353v-panel-v2`, vendor `elida,kd35t133`) | RG353V | [seen] | `rg353v-internals/09-kernel-dtb.md`, `14-rocknix-image-analysis.md` |
-| H11 | RG353V boot model: TF1 OS card first, eMMC Android fallback, TF2 ROMs-only | RG353V | [seen] | `14-rocknix-image-analysis.md` §4 |
+| H11 | RG353V boot model: **eMMC-first** — the BootROM runs the eMMC chain; the TF1 card's own u-boot is **never executed** while Android is installed. Linux from TF1 boots only because the eMMC u-boot was patched to `sysboot` the card (card out → Android). TF2 = ROMs | RG353V | [seen] | `34-emmc-dualboot-chain.md` |
 | H12 | RG353V quirks: WiFi GPIO 5, LED 77, PWM motor `pwmchip1`, jack 86, fake jacksense, audio card 1 / SPK-HP mux | RG353V | [seen] | ROCKNIX quirk scripts, `14-rocknix-image-analysis.md` §3 |
 | H13 | RG405V: T618, 4 GB, 128 GB eMMC, 4″ 640×480, 5500 mAh, Android 12 | RG405V | [inferred] | anbernic.com product page |
+| H14 | RG353V eMMC u-boot: FIT at 8 MiB (+ duplicate at 10 MiB), uncompressed, **sha256 per image, no signature**; `bootcmd` is a 5 467 B compiled-in value at `0xbfc50`; u-boot payload at `0x1000`/`0x12ef58`. Patch env at equal length + recompute the sha256 record in the FDT (both copies) | RG353V | [seen] | `34-emmc-dualboot-chain.md`, `tools/emmc-chain/` |
+| H15 | This u-boot's `test -e mmc 1:3 <path>` needs a **leading `/`** (`/extlinux/extlinux.conf`); the relative form silently fails | RG353V | [seen] | `34-emmc-dualboot-chain.md` §3 |
+| H16 | `rkimgtest` (used by `rkimg_bootdev`) only reads **LBA 64** and accepts `RKNS`/IDB — it does not look at GPT partitions. "No resource partition" is a different code path | RG353V | [seen] | `cmd/rkimgtest.c`, `34` §2 |
 
 ---
 
@@ -107,6 +110,13 @@ per device. Never copy a path without verifying it exists.
 | L16 | Max 2 extra buttons (Start/Select/L1/L2/R1/R2/L3/R3/F1/F2) are on GPIOs that the OGS tree maps to F3/F4/TL/TR/F1/F2 — pins match, codes differ | RGB10 Max 2 | [seen] | v31 DTS vs OGS dtsi |
 | L17 | ROCKNIX RK3326-a image: kernel **7.1.2**, glibc 2.44, Mesa 26.2.4, no ARMSX2, `rtl8xxxu` + `rtl8723bu_nic.bin` present, `boot.scr` ADC 85 → `rk3326-odroid-go3.dtb` | RGB10 Max 2 | [seen] | `rgb10max2-internals/11-rocknix-rk3326-port.md` §2 |
 | L18 | The image's go3 DTB already has all Max 2 button pins; only the `linux,code` values need an **overlay** (validated with `fdtoverlay`) | RGB10 Max 2 | [seen] | `rgb10max2-internals/dts/` |
+| L19 | ROCKNIX GPU switch: `gpu.driver=libmali` (default, kbase/Mali blob) or `panfrost`. Panfrost binds `fde60000.gpu`, adds `/dev/dri/renderD128`, GLES 3.1 `Mali-G52 r1 MC1` | RG353V | [seen] | `36-rocknix-mainline-validation.md` |
+| L20 | PanVK needs `PAN_I_WANT_A_BROKEN_VULKAN_DRIVER=1` (G52 is panfrost v7) and gives Vulkan 1.0.354 `panvk`; `/usr/share/vulkan/icd.d/mali.json` is a **0-byte file** in panfrost mode, so the default loader errors | RG353V | [seen] | same |
+| L21 | ROCKNIX panel v2: `anbernic,rg353v-panel-v2` is aliased to `panel-sitronix-st7703`; the shipped DTB declares only the v1 node (`anbernic,rg353p-panel`/`nv3051d`). One `fdtput` on `/flash/device_trees/rk3566-anbernic-rg353v.dtb` fixes it (keep `.orig`) | RG353V | [seen] | `35-rg353v-panel-v2-fix.md` |
+| L22 | ROCKNIX SSH/Wi-Fi are **off by settings** (`ssh.enabled`, `wifi.enabled` in `/storage/.config/system/configs/system.cfg`); sshd is socket-activated and gated by `ConditionPathExists=|/storage/.cache/services/sshd.conf`, whose `SSH_ARGS` must point at the host keys in `/storage/.cache/ssh`; `/etc/shadow` → `/storage/.cache/shadow` | RG353V | [seen] | `36` §2 |
+| L23 | ROCKNIX iwd state: `STATE_DIRECTORY=/storage/.cache/iwd`; seeding `<SSID>.psk` is enough. After a successful SAE handshake iwd adds `SAE-PT-Group19/20` and `.known_network.freq` (a card-only "connected" indicator) | RG353V | [seen] | `36` §2 |
+| L24 | The generic ROCKNIX image's extlinux points at `rk3566-powkiddy-x55.dtb`; a device install must rewrite `FDT` to its own DTB | RG353V | [seen] | `35` §5 |
+| L25 | Reference numbers (RG353V, panfrost, idle): `glmark2-es2-wayland --off-screen` **613** (GLES 3.1), `vkmark` **628** (Vulkan 1.0 panvk); CPU 42 °C / GPU 39 °C | RG353V | [seen] | `36` §3–4 |
 
 **Shared Linux decision:** ROCKNIX is the only candidate that already covers
 one device fully (RG353V) and shares the SoC family with the other (RK3326).
