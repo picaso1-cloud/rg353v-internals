@@ -9,7 +9,78 @@ be compacted and work resumed from this file alone. Mirrored in the device repos
 
 ---
 
-## Session recap — 2026-11-26 (latest)
+## Session recap — 2026-11-27 (latest)
+
+**The image boots on hardware and works.** Buttons, volume, Wi-Fi (with the
+Settings page), the TF2 ROM card and the touch panel are all verified on the
+device. The full record is `32-update-regressions-and-fixes.md`.
+
+### The five causes behind "it booted, then went black"
+1. **The PI2 futex.** libpulse's `pa_threaded_mainloop` asks for
+   `PTHREAD_PRIO_INHERIT`; glibc 2.40 answers with `FUTEX_LOCK_PI2`, a syscall
+   that needs **Linux 5.14** — the 5.10 BSP kernel answers `ENOSYS`, glibc
+   aborts ("The futex facility returned an unexpected error code."). Every
+   pulse client died: the launcher (black screen), `archr-levels` (the volume
+   daemon) and with it `input_sense` (every button).
+   **Fix:** `tools/archr-port/pi2_compat.c` — a 2 KB, libc-free preload shim
+   that answers the request with `PTHREAD_PRIO_NONE`. Verified: volume
+   75→77→79→77, launcher stable, pulse sink 64%.
+2. **The package update reverted the port's patches** (`SDL_AUDIODRIVER=alsa`
+   in `archr-launcher-session`, the `rewrite_config` fix in
+   `/etc/profile.d/001-functions`) because those files belong to the archr /
+   archr-launcher packages. **Fix:** `rg353v-port-doctor` + a pacman hook
+   (`99-rg353v-port.hook`) + `rg353v-port.service` (runs at boot too).
+3. **iwd was masked**, but the launcher's Settings page and `wifictl` speak
+   iwd — the network list came up empty. With the `SaeDisable=...,8821cs`
+   quirk iwd associates and scans fine, so iwd is unmasked/enabled, the DHCP
+   unit waits for iwd, and wpa_supplicant is the fallback only. The `.psk`
+   files must live in `/storage/.cache/iwd/` (the `/var/lib/iwd` bridge).
+4. **The TF2 card** carries the ArkOS layout (system folders at the card
+   root, 221 GB / 86k files) but roms2 pointed at `<card>/roms` (empty).
+   **Fix:** `rg353v-roms2.sh` + `rg353v-roms2.service` — 5 → 130 systems.
+5. **The touch panel works but had no pointer.** 830 events on a tap
+   (cst3xx, ABS_MT, 0..639 × 0..479) — note TurboRelic reports
+   IRQs-without-events on mainline/Batocera, so this is BSP-driver specific.
+   libinput gives the seat no pointer, so the UI and the emulators that take
+   a mouse could not use it. **Fix:** `rg353v-touch-mouse.py` +
+   `rg353v-touch-mouse.service` — a **relative** pointer on `/dev/uinput`
+   (this vendor kernel: `UI_SET_*BIT` takes the value not a pointer,
+   `input_id` is first in `uinput_user_dev`, and the absmin/absmax arrays are
+   ignored → an absolute device gets 0..0 and libinput drops it).
+   Verified: libinput `Capabilities: pointer`, sway has a pointer, tap =
+   BTN_LEFT + REL_X/REL_Y.
+
+### Also fixed
+- `rg353v-kernel-overlays.service` had an **ordering cycle** that made systemd
+  delete the tmpfiles jobs: no `/var/run`, no `/run/archr` → sway could not
+  make `/run/sway/sway-daemon.conf` (the UI restart-looped) and nothing could
+  write `/var/cache`. The unit now runs in `multi-user.target`.
+- `sshd-s2`: `/var/lib/sshd` → `/storage/.cache/ssh` did not exist on a fresh
+  card, so ssh-keygen could not save the host keys (no SSH at all). The unit
+  creates it.
+- The Wi-Fi SDIO bus (`sdmmc2` / `fe000000`) is capped to **25 MHz** in the
+  DTB (TurboRelic's fix; the board's SDIO breaks above it).
+- The dArkOS **5.10.226 modules + firmware** are installed into the
+  kernel-overlay tree (the Arch-R image is an RK3326 one: `kernel-overlays-setup`
+  normally runs from ARCH-R's busybox init, which our initramfs replaces).
+- `archr-patcher patch` now prepares the boot partition itself (dual-mode
+  initramfs + 25 MHz cap); `prepare` is a subcommand for an already-patched
+  image.
+
+### Device state (verified 2026-11-27)
+Boots ArchR 20261125 on the dArkOS 5.10.226 kernel; launcher/sway/archr-levels/
+input/iwd/dhcp all active; 0 futex aborts and 0 launcher crashes this boot;
+130 systems with games from TF2; volume and all 20 buttons verified on the
+hardware; touch drives a pointer. The only failed unit is
+`proc-sys-fs-binfmt_misc.mount` (this kernel has no binfmt_misc — harmless).
+
+**Next:** a clean image rebuild + flash with every fix baked in (the card is
+already correct from the live session), and the PanVK / mainline-kernel phase
+(`28-turborelic-bsp-study.md`).
+
+---
+
+## Session recap — 2026-11-26
 
 ### Arch-R RG353V patcher/flasher tool (Phase 1)
 - **Built** `archr-patcher/` — a reusable tool that downloads the latest
