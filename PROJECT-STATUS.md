@@ -50,6 +50,20 @@ device. The full record is `32-update-regressions-and-fixes.md`.
    Verified: libinput `Capabilities: pointer`, sway has a pointer, tap =
    BTN_LEFT + REL_X/REL_Y.
 
+### Two more, found on the first day of real use
+- **Every game quit immediately.** `archr-launcher-session` makes a FIFO per
+  game with `mkfifo -m 0600`. coreutils issues the **fchmodat2 syscall
+  inline** (not through a symbol, so the preload shim cannot catch it) →
+  ENOSYS → `mkfifo: cannot set permissions … Function not implemented` → the
+  `|| exit 1` takes the whole session down → systemd restarts it → back to the
+  menu. The port now does `mkfifo "$gate" && chmod 0600 "$gate"` (chmod goes
+  through fchmodat, which the shim handles).
+- **Wi-Fi flapped and the Settings page stuck on "connecting".** Power save
+  was on: this SDIO RTL8821CS drops the link every ~30 s with it on
+  (`connected → disconnected → autoconnect`), and the launcher's page blocks
+  while it waits. `rg353v-wifi-powersave.service` turns it off once wlan0 is
+  up; no drops in the following minutes.
+
 ### Also fixed
 - `rg353v-kernel-overlays.service` had an **ordering cycle** that made systemd
   delete the tmpfiles jobs: no `/var/run`, no `/run/archr` → sway could not
