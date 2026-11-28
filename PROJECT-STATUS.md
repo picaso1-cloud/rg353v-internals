@@ -9,6 +9,45 @@ be compacted and work resumed from this file alone. Mirrored in the device repos
 
 ---
 
+## Session recap — 2026-11-28 — RG353V Linux track is feature-complete
+
+**The RG353V is done on the Linux side.** ROCKNIX 20261101 (kernel 7.2.11)
+boots from TF1 through the patched eMMC chain, the v2 panel is fixed, and
+Panfrost/PanVK are validated. The record: `34` (chain), `35` (panel), `36`
+(mainline validation + GPU A/B), `37` (tuning/resources).
+
+### Verified on hardware (2026-11-27 → 28)
+- **Dual-boot:** card in → Linux, card out → Android; no Android partition
+  was ever wiped. The card's own bootloader was restored to a safe fallback
+  and the eMMC patch is a documented tool (`tools/emmc-chain/`).
+- **Panel:** `anbernic,rg353v-panel-v2` → `panel-sitronix-st7703`, 640×480@60;
+  the residual flicker was power/retention, gone after a long power-off.
+- **GPU:** Panfrost (GLES 3.1, `glmark2` 613) and PanVK (Vulkan 1.0.354,
+  `vkmark` 628) behind `PAN_I_WANT_A_BROKEN_VULKAN_DRIVER=1`; libmali for
+  comparison: GLES 3.2 / 577, Vulkan 1.3.276 / 747. The driver is global.
+- **Remote:** Wi-Fi (iwd) + SSH persist via `system.cfg` (`ssh.enabled`,
+  `wifi.enabled`), `sshd.conf` `SSH_ARGS`, `/storage/.cache/ssh` keys.
+
+### Tuning applied
+- **zram 512 MB lz4 + `vm.swappiness=100`** via `rocknix-memory-manager`
+  (`/storage/.config/swap.conf`, applied by the service at boot).
+- Idle governors left at `ondemand` / `simple_ondemand`: `runemu.sh` already
+  switches to `performance` for every game and restores on exit, so pinning
+  it only heats the menu (measured: 143 → 184 MB, 16.9 → 24.5 % CPU, 45 → 55 °C).
+- ES weight analysed: 143–184 MB / 16–24 % CPU, driven by the theme's
+  **video previews** (`showVideoAtDelay=10`); "close ES when RAM is tight" is
+  only safe as **freeze** (games are `StopPropagatedFrom=essway.service`).
+- Undervolt overlays exist but are **not applied** by our chain (stock
+  `sysboot` ignores `/overlays`); merge with `fdtoverlay` if wanted.
+
+### Next
+1. Optional: ES video previews off, freeze-ES-during-game watchdog, undervolt.
+2. **Android refresh:** evaluate **GammaOS Next / andr36oid** on the latest
+   Android releases for the RG353V, using the eMMC 16 MiB backup + the
+   card-based `dd` restore path as the rollback net (docs `33`, `34`).
+
+---
+
 ## Session recap — 2026-11-27 (evening) — MAINLINE + DUAL-BOOT WORKING
 
 **The mainline phase is unblocked and validated on the RG353V.** ROCKNIX

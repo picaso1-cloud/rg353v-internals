@@ -138,6 +138,29 @@ XDG_RUNTIME_DIR=/var/run/0-runtime-dir WAYLAND_DISPLAY=wayland-1 vkmark
 The Wayland socket is `wayland-1` under `/run/0-runtime-dir` (the ES process
 env has the exact pair; do not guess `wayland-0`).
 
+### A/B: libmali vs Panfrost (same benchmarks, one sample each)
+
+Switch with `gpu.driver=libmali|panfrost` in `system.cfg` + reboot
+(`/dev/dri` gains `card1`/`renderD128` only in panfrost mode).
+
+| | **libmali** (blob) | **Panfrost** |
+|---|---|---|
+| GPU binding | `fde60000.gpu -> mali` (kbase) | `-> panfrost` (1.6.0) |
+| GLES | `Mali-G52` — **GLES 3.2** | `Mali-G52 r1 MC1 (Panfrost)` — GLES 3.1 |
+| `glmark2 --off-screen` | 577 | **613** (+6 %) |
+| Vulkan | `Mali-G52`, API **1.3.276** | `panvk`, API **1.0.354** (experimental) |
+| `vkmark` | **747** | 628 (−16 %) |
+
+Practical read: **Panfrost wins GL/GLES**, **libmali wins Vulkan** (and is a
+full Vulkan 1.3 while panvk is gated as "broken"). For an ES/RetroArch
+front-end (GLES) Panfrost is the better default; for Vulkan emulators
+(PPSSPP-Vulkan, DuckStation) libmali is. The driver is **global** — the kernel
+binds one at a time, so "per-emulator" means a reboot, not a per-app flag.
+
+Caveat: a repeat-run loop (multiple `glmark2`/`vkmark` back to back) coincided
+with the device dropping off the network, so treat these as **single-sample**
+numbers until a longer, thermal-controlled run is done.
+
 ---
 
 ## 4. Resource snapshot (idle, 67 % battery)

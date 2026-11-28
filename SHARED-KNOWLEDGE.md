@@ -117,6 +117,12 @@ per device. Never copy a path without verifying it exists.
 | L23 | ROCKNIX iwd state: `STATE_DIRECTORY=/storage/.cache/iwd`; seeding `<SSID>.psk` is enough. After a successful SAE handshake iwd adds `SAE-PT-Group19/20` and `.known_network.freq` (a card-only "connected" indicator) | RG353V | [seen] | `36` §2 |
 | L24 | The generic ROCKNIX image's extlinux points at `rk3566-powkiddy-x55.dtb`; a device install must rewrite `FDT` to its own DTB | RG353V | [seen] | `35` §5 |
 | L25 | Reference numbers (RG353V, panfrost, idle): `glmark2-es2-wayland --off-screen` **613** (GLES 3.1), `vkmark` **628** (Vulkan 1.0 panvk); CPU 42 °C / GPU 39 °C | RG353V | [seen] | `36` §3–4 |
+| L26 | ROCKNIX memory manager: `rocknix-memory-manager` (service + `/storage/.config/swap.conf` + `rocknix-memory-recompress.timer`) manages ZRAM/disk swap; **off by default**. `--zram-size 512 --zram-algo lz4 --setup` → `/dev/zram0` 512M, `vm.swappiness=100`, watermark 10, compaction 10 | RG353V | [seen] | `37` §2 |
+| L27 | `runemu.sh` calls `performance` before every game and restores `system.cpugovernor` on exit. Pinning `performance` permanently only heats the menu (143→184 MB, 16.9→24.5 % CPU, 45→55 °C) | RG353V | [seen] | `37` §2 |
+| L28 | ES-DE costs 143–184 MB / 16–24 % CPU depending on what it shows; the theme has `showVideoAtDelay=10` (video previews). Rootfs is read-only squashfs; `/etc/profile` sources `/storage/.config/profile.d/*` and `start_es.sh` calls `emulationstation` via PATH — the persistence hooks for a frontend swap | RG353V | [seen] | `37` §3–4 |
+| L29 | Games run in `games.slice` via `systemd-run --scope … -p StopPropagatedFrom=essway.service` → **stopping essway kills the game**; **freezing** it is safe (separate cgroup) and lets zram reclaim its pages | RG353V | [seen] | `37` §3 |
+| L30 | `/flash/overlays/rk3566-undervolt-cpu-l1..l3.dtbo` exist but are **not applied** by the stock eMMC chain (plain `sysboot` ignores `/overlays`); merge into the boot DTB with `fdtoverlay` | RG353V | [seen] | `37` §2 |
+| L31 | GPU A/B (same conditions): Panfrost GLES 3.1 / 613 vs libmali GLES 3.2 / 577; libmali Vulkan 1.3.276 / 747 vs panvk 1.0.354 / 628. The kernel binds **one** driver, so there is no per-emulator switch | RG353V | [seen] | `36` §3 |
 
 **Shared Linux decision:** ROCKNIX is the only candidate that already covers
 one device fully (RG353V) and shares the SoC family with the other (RK3326).

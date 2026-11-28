@@ -169,9 +169,16 @@ Only sysfs paths and package names change per SoC.
 - ✅ **Panel v2 fixed** (`anbernic,rg353v-panel-v2` → `panel-sitronix-st7703`)
   and **Panfrost/PanVK validated** (`glmark2` **613**, `vkmark` **628**) —
   see `35-rg353v-panel-v2-fix.md`, `36-rocknix-mainline-validation.md`.
-- TF1 Linux + eMMC Android + TF2 ROMs; next: a selector (hold a button or a
-  marker file) instead of "card presence", and the libmali-vs-panfrost A/B.
+- ✅ **Feature-complete on the Linux side (2026-11-28).** TF1 Linux + eMMC
+  Android + TF2 ROMs; tuning and resource stats in `37` (zram 512 MB lz4,
+  idle `ondemand` with automatic game-time `performance`, ES weight analysed,
+  libmali-vs-panfrost A/B in `36`). Nice-to-haves left: ES video previews off,
+  freeze-ES-during-game, undervolt l1, and a real dual-boot selector
+  (button/marker) instead of card presence.
 - Port the andr36oid L3 layer (gamemode/janitor/Tailscale/Moonlight/input).
+- **Next track — Android refresh:** evaluate **GammaOS Next / andr36oid** on
+  the latest Android releases for the RG353V, with the eMMC 16 MiB backup and
+  the card-based `dd` restore as the rollback net (`33`, `34`).
 - Optional: Android 13/14 GSI experiment on a backed-up eMMC (only if a
   rollback path is proven).
 - **Arch-R track (parallel): VERIFIED ON HARDWARE (2026-11-27).**
